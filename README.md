@@ -8,3 +8,4 @@ The plan:
 - The actual voting behaviour of the states is [located on the respective states website](https://www.bundesrat.de/DE/plenum/abstimmung/abstimmung-node.html).
 - TODO: Scraping the 16 states in their various formats to determine voting behaviour for each of the TOPs.
 
+If you want to work on a scraper, [please check the issues and assign yourself!](https://github.com/okfde/bundesrat-scraper/issues/)
