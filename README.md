@@ -9,3 +9,5 @@ The plan:
 - TODO: Scraping the 16 states in their various formats to determine voting behaviour for each of the TOPs.
 
 If you want to work on a scraper, [please check the issues and assign yourself!](https://github.com/okfde/bundesrat-scraper/issues/)
+
+For an example how to scrape the PDFs, [have a look at the Bremen scraper](https://github.com/okfde/bundesrat-scraper/blob/master/bremen/scraper.ipynb).
