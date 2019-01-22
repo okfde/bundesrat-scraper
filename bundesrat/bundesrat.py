@@ -93,7 +93,7 @@ def get_sessions_this_year(cache=True):
             yield {
                 'number': num,
                 'timestamp': timestamp.isoformat(),
-                'url': url
+                'url': url,
             }
 
 
@@ -226,6 +226,12 @@ def get_committees(els):
         for abbr in el.xpath('./abbr'):
             text = abbr.text_content()
             if text == 'fdf':
+                if not committees:
+                    committees.append({
+                        'abbreviation': el.text_content().split()[0],
+                        'name': None,
+                        'leading': False
+                    })
                 committees[-1]['leading'] = True
                 continue
             committees.append({
@@ -350,7 +356,8 @@ def parse_top(session_number, top_element, top_type='normal'):
     data = {
         'number': top_number,
         'title': title,
-        'top_type': top_type
+        'top_type': top_type,
+        'session_number': session_number,
     }
     print(top_number, end=' ')
     root = etree.fromstring(get(TOP_URL.format(num=session_number, top=top_number)))
@@ -372,18 +379,9 @@ def get_session_tops(session_number):
         if section.tag == 'ul':
             top_elements = section.xpath('.//div[@class="top-header"]')
             for top_element in top_elements:
-                top = parse_top(session_number, top_element, top_type=top_type)
-                yield top
+                yield parse_top(session_number, top_element, top_type=top_type)
         elif section.tag == 'h2':
             section_heading = section.text_content()
             top_type = TOP_SECTIONS[section_heading]
         else:
             raise Exception('Unexpected section tag {}'.format(section.tag))
-
-
-def get_session_details(sessions):
-    for session in sessions:
-        print('Session', session['number'])
-        session['tops'] = list(get_session_tops(session['number']))
-        print('\n')
-    return sessions
