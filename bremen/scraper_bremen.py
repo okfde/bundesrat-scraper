@@ -79,8 +79,6 @@ def get_beschluesse_text_type1(session, filename):
 
     top_nums = [t['number'] for t in session['tops'] if t['top_type'] == 'normal'] # 1, 2, 3a, 3b, 4,....
     reformatted_top_nums = get_reformatted_tops_type1(top_nums) #1., 2., 3. a), 3. b), 4.,...
-    page_heading = cutter.filter(search='Beschlüsse der {}. Sitzung des Bundesrates'.format(session_number))[0] #Nur bei 935
-    page_number = list(cutter.filter(search='1', page=1))[-1]
 
     #e.g. "1b", ("1. b)", "2.")
     for top_num, (current, next_) in zip(top_nums, with_next(reformatted_top_nums)):
@@ -105,7 +103,7 @@ def get_beschluesse_text_type1(session, filename):
                 next_top = next_top.below(current_top)[0] #Don't have to find TOP number line, because we can use current_top as a upper border
             else:
                 next_top = cutter.filter(auto_regex='^{}\.$'.format(next_[:-1]))
-        senats_text, br_text = getSenatsAndBrTextsForCurrentTOP(cutter, page_heading, page_number, current_top, next_top)
+        senats_text, br_text = getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top)
         yield top_num, {'senat': senats_text, 'bundesrat': br_text}
 
 def get_beschluesse_text_type2(session, filename, top_length):
@@ -114,8 +112,6 @@ def get_beschluesse_text_type2(session, filename, top_length):
 
     top_nums = [t['number'] for t in session['tops'] if t['top_type'] == 'normal']# 1, 2, 3a, 3b, 4,....
     reformatted_top_nums = get_reformatted_tops_type2(top_nums, top_length)# 001, 002, 003 a, 003 b, 004,... or 01, 02, 03 a, 03 b, 04,...
-    page_heading = cutter.filter(search='Ergebnisse der {}. Sitzung des Bundesrates'.format(session_number))[0] #Nur bei 962
-    page_number = list(cutter.filter(search='1', page=1))[-1]
 
     #e.g. 1, (001, 002)
     for top_num, (current, next_) in zip(top_nums, with_next(reformatted_top_nums)):
@@ -124,12 +120,14 @@ def get_beschluesse_text_type2(session, filename, top_length):
         next_top = None
         if next_ is not None:
             next_top = cutter.filter(auto_regex='^{}$'.format(next_))
-        senats_text, br_text = getSenatsAndBrTextsForCurrentTOP(cutter, page_heading, page_number, current_top, next_top)
+        senats_text, br_text = getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top)
         yield top_num, {'senat': senats_text, 'bundesrat': br_text}
 
 
-def getSenatsAndBrTextsForCurrentTOP(cutter, page_heading, page_number, current_top, next_top):
-    column_two = 705 #start of third (and last) column on type 2 docs, don't need anything from this third column, so just look at the stuff left from it
+def getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top):
+    column_two = 731 #start of third (and last) column on type 2 docs, don't need anything from this third column, so just look at the stuff left from it
+    page_heading = 74 #Heading on each page in e.g. 962 (Ergebnisse der ...). Isn't there for e.g. 961, so had to hardcode it.
+    page_number = 1260 #Page number at the bottom of each page in e.g. 962, Isn't there for e.g. 961, so had to hardcode it.
     senats = cutter.filter(auto_regex='^Senats-?') | cutter.filter(auto_regex='^Beschluss$')
     senats = senats.below(current_top)
     if next_top:
@@ -142,15 +140,15 @@ def getSenatsAndBrTextsForCurrentTOP(cutter, page_heading, page_number, current_
 
     senats_text = cutter.all().filter(
         doc_top__gte=senats.doc_top - 1 ,
-        top__gte=page_heading.bottom,
-        bottom__lt=page_number.bottom,
+        top__gte=page_heading,
+        bottom__lt=page_number,
         right__lt=column_two #TODO No third column for type1 docs
     )
 
     br_text = cutter.all().filter(
         doc_top__gte=ergebnis_br.doc_top - 1 ,#Relativ zu allenSeiten
-        top__gte=page_heading.bottom, #Relativ zu allen
-        bottom__lt=page_number.bottom,
+        top__gte=page_heading,
+        bottom__lt=page_number,
         right__lt=column_two #TODO No third column for type1 docs
     )
 
@@ -170,7 +168,7 @@ def get_beschluesse_text(session, filename):
         return get_beschluesse_text_type1(session, filename)
     elif(session_number == 938):
         return get_beschluesse_text_type2(session, filename, 2)
-    else: #TODO Hier noch besser untergleidern
+    else:
         return get_beschluesse_text_type2(session, filename, 3)
 
 def get_session(session):
