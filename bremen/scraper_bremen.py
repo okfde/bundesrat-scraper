@@ -146,7 +146,7 @@ def getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top):
     )
 
     br_text = cutter.all().filter(
-        doc_top__gte=ergebnis_br.doc_top - 1 ,#Relativ zu allenSeiten
+        doc_top__gte=ergebnis_br.doc_top - 9 ,#Relative to all pages, biggest offset in 938.19
         top__gte=page_heading,
         bottom__lt=page_number,
         right__lt=column_two #TODO No third column for type1 docs
