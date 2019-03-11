@@ -9,7 +9,6 @@ from lxml import html as etree
 
 import pdfcutter
 
-BASE_URL = 'https://www.landesvertretung.bremen.de'
 INDEX_URL = 'https://www.diebevollmaechtigte.bremen.de/service/bundesratsbeschluesse-17466'
 PDF_URL = 'https://www.diebevollmaechtigte.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'
 
