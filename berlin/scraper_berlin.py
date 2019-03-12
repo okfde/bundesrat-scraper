@@ -1,17 +1,14 @@
 import json
-import itertools
-import os
 import re
-from urllib.parse import urlsplit
 
 import requests
 from lxml import html as etree
 
 import pdfcutter
+import helper
 
 BASE_URL = 'https://www.berlin.de'
 INDEX_URL = 'https://www.berlin.de/rbmskzl/politik/bundesangelegenheiten/aktuelles/artikel.776154.php'
-PDF_URL = 'https://www.landesvertretung.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'
 
 LINK_TEXT_RE = re.compile(r'(\d+)\. Sitzung am .*')
 
@@ -30,7 +27,21 @@ def get_pdf_urls():
         yield num, BASE_URL + link.attrib['href']
 
 
-PDF_URLS = dict(get_pdf_urls())
+def get_beschluesse_text(session, filename):
+    cutter = pdfcutter.PDFCutter(filename=filename)
+    session_number = int(session['number'])
 
-print(PDF_URLS)
+    top_nums = [t['number'] for t in session['tops'] if t['top_type'] == 'normal'] # 1, 2, 3a, 3b, 4,....
+#    reformatted_top_nums = get_reformatted_tops(top_nums) #1., 2., 3. a), 3. b), 4.,...
+    return {}
 
+
+
+
+def get_session(session):
+    PDF_URLS = dict(get_pdf_urls())
+    try:
+        filename = helper.get_session_pdf_filename(session, PDF_URLS)
+    except KeyError:
+        return
+    return dict(get_beschluesse_text(session, filename))
