@@ -1,13 +1,10 @@
-import json
-import itertools
-import os
 import re
-from urllib.parse import urlsplit
 
 import requests
 from lxml import html as etree
 
 import pdfcutter
+import helper
 
 INDEX_URL = 'https://www.diebevollmaechtigte.bremen.de/service/bundesratsbeschluesse-17466'
 PDF_URL = 'https://www.diebevollmaechtigte.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'
@@ -26,29 +23,6 @@ def get_pdf_urls():
         num = int(num.group(1))
         yield num, PDF_URL.format(number=num)
 
-PDF_URLS = dict(get_pdf_urls())
-
-def get_filename_url(url):
-    splitresult = urlsplit(url)
-    filename = splitresult.path.replace('/', '_')
-    filename = os.path.join('./_cache', filename)
-    if os.path.exists(filename):
-        return filename
-    response = requests.get(url)
-    if response.status_code != 200:
-        raise Exception('{} not found'.format(url))
-    with open(filename, 'wb') as f:
-        f.write(response.content)
-    return filename
-
-def get_session_pdf_filename(session):
-    url = PDF_URLS[session['number']]
-    return get_filename_url(url)
-
-def with_next(iterable):
-    a, b = itertools.tee(iterable)
-    next(b, None)
-    return itertools.zip_longest(a, b)
 
 #46a -> 046 a
 def reformat_top_num_type2(top_num, top_length):
@@ -80,7 +54,7 @@ def get_beschluesse_text_type1(session, filename):
     reformatted_top_nums = get_reformatted_tops_type1(top_nums) #1., 2., 3. a), 3. b), 4.,...
 
     #e.g. "1b", ("1. b)", "2.")
-    for top_num, (current, next_) in zip(top_nums, with_next(reformatted_top_nums)):
+    for top_num, (current, next_) in zip(top_nums, helper.with_next(reformatted_top_nums)):
         if('a)' in current):
             current_top = cutter.filter(auto_regex='^{}\.$'.format(current.split()[0][:-1])) #46. a) -> 46
         elif(')' in current):
@@ -113,7 +87,7 @@ def get_beschluesse_text_type2(session, filename, top_length):
     reformatted_top_nums = get_reformatted_tops_type2(top_nums, top_length)# 001, 002, 003 a, 003 b, 004,... or 01, 02, 03 a, 03 b, 04,...
 
     #e.g. 1, (001, 002)
-    for top_num, (current, next_) in zip(top_nums, with_next(reformatted_top_nums)):
+    for top_num, (current, next_) in zip(top_nums, helper.with_next(reformatted_top_nums)):
         current_top = cutter.filter(auto_regex='^{}$'.format(current))
 
         next_top = None
@@ -171,8 +145,9 @@ def get_beschluesse_text(session, filename):
         return get_beschluesse_text_type2(session, filename, 3)
 
 def get_session(session):
+    PDF_URLS = dict(get_pdf_urls())
     try:
-        filename = get_session_pdf_filename(session)
+        filename = helper.get_session_pdf_filename(session, PDF_URLS)
     except KeyError:
         return
     return dict(get_beschluesse_text(session, filename))
