@@ -34,7 +34,7 @@ def reformat_top_num(top_num):
 def get_reformatted_tops(top_nums):
     return [reformat_top_num(t) for t in top_nums]
 
-def get_beschluesse_text(session, filename):
+def get_beschluesse_text_type(session, filename, type_num):
     cutter = pdfcutter.PDFCutter(filename=filename)
     session_number = int(session['number'])
 
@@ -45,22 +45,27 @@ def get_beschluesse_text(session, filename):
     for top_num, (current, next_) in zip(top_nums, helper.with_next(reformatted_top_nums)):
         if(')' in current):
             #e.g. 46. a) problem: a) is on new line. There, find the first line below 46 that is starting with b)
-            current_top = cutter.filter(auto_regex='^{}$'.format(current.split()[-1].replace(')', '\\)'))) #46. b) -> b\) because of regex brackets
             curr_num = current.split()[0] #46. b) -> 46.
             current_num = cutter.filter(auto_regex='^{}\.'.format(curr_num[:-1]))[0] #Find frst line beginning with 46.
-            current_top = current_top.below(current_num)[0] #Find first line starting with b) below TOP 46.
+            current_top = cutter.all().filter(
+                doc_top__gte=current_num.doc_top - 50 , #First, get everything (including the line with the current_num) that is below current_num
+            )
+            current_top = current_top.filter(auto_regex='{}'.format(current.split()[-1].replace(')', '\\)')))[0] #46. b) -> b\) because of regex brackets
+
         else:
-            current_top = cutter.filter(auto_regex='^{}\.$'.format(current[:-1])) #Escape . in 46. because of regex
+            current_top = cutter.filter(auto_regex='^{}\.$'.format(current[:-1]))[0] #Escape . in 46. because of regex
 
         next_top = None
         if next_ is not None: #There is a TOP after this one which we have to take as a lower border
             #Exactly the same as for the current_top
             if(')' in next_):
-                next_top = cutter.filter(auto_regex='^{}$'.format(next_.split()[-1].replace(')', '\\)')))
+                next_top = cutter.filter(auto_regex='{}'.format(next_.split()[-1].replace(')', '\\)')))
                 next_top = next_top.below(current_top)[0] #Don't have to find TOP number line, because we can use current_top as a upper border
             else:
                 next_top = cutter.filter(auto_regex='^{}\.$'.format(next_[:-1]))
 
+        if session_number == 970 and int(current.split()[0][:-1]) >= 10:
+            yield top_num, {'senat': '', 'bundesrat': ''} #TODO In Meeting 970, every two digit TOP is written with a \n between the numbers. Should be parsed later
         senats_text, br_text = getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top)
         yield top_num, {'senat': senats_text, 'bundesrat': br_text}
 
@@ -96,14 +101,24 @@ def getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top):
 
 
     #Cut away "Haltung NI:" and "Ergebnis BR:" from text
+    print("current_top", current_top.clean_text())
     senats_text = senats_text.clean_text()
+    print("senats_text", senats_text)
     if senats_text != "":
         senats_text = SENAT_TEXT_RE.search(senats_text).group(1)
 
     br_text = br_text.clean_text()
+    print("br_text", br_text)
     if br_text != "":
         br_text = BR_TEXT_RE.search(br_text).group(1)
     return senats_text, br_text
+
+def get_beschluesse_text(session, filename):
+    session_number = int(session['number'])
+    if session_number >= 973:
+        return get_beschluesse_text_type(session, filename, 1)
+    else:
+        return get_beschluesse_text_type(session, filename, 2)
 
 def get_session(session):
     PDF_URLS = dict(get_pdf_urls())
