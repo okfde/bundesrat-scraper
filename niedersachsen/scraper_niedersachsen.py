@@ -107,7 +107,6 @@ def getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top):
 
 def get_session(session):
     PDF_URLS = dict(get_pdf_urls())
-    PDF_URLS = {973: PDF_URLS[973]}
     try:
         filename = helper.get_session_pdf_filename(session, PDF_URLS)
     except KeyError:
