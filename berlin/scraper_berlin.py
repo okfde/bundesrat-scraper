@@ -5,6 +5,11 @@ import requests
 from lxml import html as etree
 
 import pdfcutter
+
+# Import relative Parent Directory for Helper Classes
+import os, sys
+sys.path.insert(0, os.path.abspath('..')) #Used when call is ` python3 file.py`
+sys.path.insert(0, os.path.abspath('.')) #Used when call is ` python3 $COUNTY/file.py`
 import helper
 
 BASE_URL = 'https://www.berlin.de'
