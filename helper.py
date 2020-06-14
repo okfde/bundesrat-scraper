@@ -3,6 +3,11 @@ from urllib.parse import urlsplit
 import os
 import requests
 
+#Escape . and ) in TOPs for regex
+#Cant use re.escape because it escapes spaces too, which is bad for later split
+def escapeForRegex(s):
+    return s.replace(".", "\\.").replace(")", "\\)")
+
 def get_filename_url(url):
     splitresult = urlsplit(url)
     filename = splitresult.path.replace('/', '_')
