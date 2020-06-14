@@ -24,6 +24,8 @@
     * depends on `pdftohtml -xml` output
   * TOP Chunk := Its Subpart Chunk, because Number and Subpart Chunk can differ if they are not present in the same column
       * Determine which Subpart Chunk is the TOP Chunk can be hard if number and subpart not in same chunk
+  * If TOP has only number and number is split into n Chunks, then TOP Chunk := highest chunk with (first) part of the number
+    * Still Subpart Chunk if Subpart present
 
 * Selection String Format
   * Selection(left, right, width, height) w.r.t. `pdftohtml -xml`
@@ -45,6 +47,15 @@
 * Upper Border of some Selections S
   * Some Selection b, such that all filtered Selections from S' are strictly below b
   * S' can be empty
+  * Strict, because `cutter.below(selection)` is strict, never contains `selection`
+    * To circumvent this, do:
+
+```
+            nonStrictSelections = self.cutter.all().filter(
+                doc_top__gte=selection.doc_top - 1, #Upper Border a little bit higher -> Non-Strict
+            )
+```
+
 
 ## Relations
 
@@ -52,6 +63,10 @@
 * 1 TOP has 0-1 Subparts
 * 1 Number has n TOPs
 * 1 Subpart has n TOPs
-* 1 Selection has *exactly* 1 Chunk, not just part of it
+* 1 Selection has *exactly* n Chunks, not just matching parts of them
+  * Selection is always List, so
+    * when we talk about 1 Chunk, then we say Selection
+    * when we talk about 0-n Chunks, then we say Selections, although its one Selection-Object
+    
 * 1 Chunk can be in n Selections
 * 1 Number can be in n Chunks
