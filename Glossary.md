@@ -2,6 +2,11 @@
 
 ## Definitions
 
+* Session
+  * Meeting of BR
+  * Numbered from 1 to x (= Session Number)
+  * e.g 990 or 973
+
 * TOP (Tagesordnungspunkt)
   * Determined by number and (if present) the Subpart and (if present) Dot/Bracket
     * e.g. 32. , 34. a) (but not 34. alone ) , 23. e)
@@ -59,6 +64,8 @@
 
 ## Relations
 
+* 1 Session has 1 Session Number
+* 1 Session has n TOPs
 * 1 TOP has 1 Number
 * 1 TOP has 0-1 Subparts
 * 1 Number has n TOPs
