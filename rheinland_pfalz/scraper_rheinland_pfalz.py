@@ -26,11 +26,15 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
     def _get_pdf_urls(self):
         #Have to check all search result pages, because can't find anywhere a complete list
         #of all "Abstimmungsverhalten" PDFs of RP
-        searchPageNum = 1 
+        searchPageNum = 1
         while True:
             response = requests.get(INDEX_URL.format(searchPageNum))
             root = etree.fromstring(response.content)
             resultsOnPage = root.xpath('//*[@id="content"]/div[3]/div/div/ul/li/div/h3/a')
+
+            if len(resultsOnPage) == 0: #First Empty Search Page -> Visited everything possible
+                break
+
             for partLink in resultsOnPage: #Only /sharepoint... , not http://www...
 
                 text = partLink.text_content()
@@ -45,22 +49,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
                     yield int(num), link
 
 #                //*[@id="dataset-resources"]/ul/li/div/ul/li[2]/a
-
-
-            return
             searchPageNum+=1
-
-        #Have three completely different xpaths for year-tables
-        #Therefore, filter (almost) all links (a)
-        allLinks = root.xpath('//ul/li/a')
-        for name in allLinks:
-            text = name.text_content()
-            maybeNum = NUM_RE.search(text) #Links to a Bundesrat-PDF?
-            if maybeNum: #Also have e.g. "Mitglieder Brandenburgs im Bundesrat" as link -> Filter them out
-                num = int(maybeNum.group(1))
-                link = name.attrib['href']
-                link = link.replace(" ", "%20") #Replace Space with HTML Escape Character
-                yield int(num), link
 
 print(list(MainExtractorMethod(None)._get_pdf_urls()))
 
