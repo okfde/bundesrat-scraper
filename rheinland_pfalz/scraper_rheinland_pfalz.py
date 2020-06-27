@@ -30,9 +30,9 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         while True:
             response = requests.get(INDEX_URL.format(searchPageNum))
             root = etree.fromstring(response.content)
-            resultsOnPage = root.xpath('//*[@id="content"]/div[3]/div/div/ul/li/div/h3/a')
+            resultsOnPage = root.xpath('//*[@id="content"]/div[3]/div/div/ul/li/div/h3/a') # All Search Results On this Page
 
-            if len(resultsOnPage) == 0: #First Empty Search Page -> Visited everything possible
+            if len(resultsOnPage) == 0: #Empty Search Page -> Visited everything possible -> break Loop
                 break
 
             for partLink in resultsOnPage: #Only /sharepoint... , not http://www...
@@ -48,10 +48,11 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
                     link = rootLink.xpath('//*[@id="dataset-resources"]/ul/li/div/ul/li[2]/a')[0].attrib['href'] #There should only be one result with that xpath
                     yield int(num), link
 
-#                //*[@id="dataset-resources"]/ul/li/div/ul/li[2]/a
             searchPageNum+=1
 
-print(list(MainExtractorMethod(None)._get_pdf_urls()))
+# TODO Look if there is something above current TOP with pattern [IVX]+\.  , then take next passage as Senat text, else the Senat Text is below 
+# TODO What to do if below one top no other top, but no last top? (e.g. 973: TOP 40  (Page 16) - still "Erläuterungen" below
+# TODO TOPs unorderded, how to get next? Maybe just select all ^..\. and the take first (wrt doc_top) below current top selection (Also e.g. 970 25a. is easy to select)
 
 #Senats/BR Texts and TOPS in BW  all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
