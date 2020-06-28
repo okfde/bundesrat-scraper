@@ -66,7 +66,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         ).above(BRTitleSelection).clean_text()
         br_text = self.cutter.all().filter(
                 doc_top__gte = BRTitleSelection.doc_top-1, #BR Text starts next to title
-                auto_regex="^[^_]+"
+                auto_regex="^[^_]+" #Each TOP ends with ----- line, filter this one out
         ).above(selectionNextTOP).clean_text()
 
         # Although in 973 TOP 9, senats_text ends with many blank lines, in JSON they are somehow striped
