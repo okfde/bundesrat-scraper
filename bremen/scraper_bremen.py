@@ -11,13 +11,20 @@ sys.path.insert(0, os.path.abspath('..')) #Used when call is ` python3 file.py`
 sys.path.insert(0, os.path.abspath('.')) #Used when call is ` python3 $COUNTY/file.py`
 import helper
 
-INDEX_URL = 'https://www.diebevollmaechtigte.bremen.de/service/bundesratsbeschluesse-17466'
-PDF_URL = 'https://www.diebevollmaechtigte.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'
+PREFIX="die"
+INDEX_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/service/bundesratsbeschluesse-17466'
+PDF_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'#doesn't work anymore for e.g. Session 986
 
 LINK_TEXT_RE = re.compile(r'(\d+)\. Sitzung')
 
 def get_pdf_urls():
-    response = requests.get(INDEX_URL)
+    #Bremen switches it URL sometimes from "*die*bevollmaechtigte" to "*der*bevollmaechtige" and vise versa. Check which prefix is used today by checking which website is online
+    try:
+        requests.get(INDEX_URL.format(pre=PREFIX))
+    except Exception:
+        PREFIX = "der"
+
+    response = requests.get(INDEX_URL.format(pre=PREFIX))
     root = etree.fromstring(response.content)
     names = root.xpath('.//ul/li/a/span')
     for name in names:
@@ -26,7 +33,7 @@ def get_pdf_urls():
         if num is None:
             continue
         num = int(num.group(1))
-        yield num, PDF_URL.format(number=num)
+        yield num, PDF_URL.format(pre= PREFIX, number=num)
 
 
 #46a -> 046 a
