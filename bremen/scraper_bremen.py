@@ -14,6 +14,7 @@ import helper
 PREFIX="die"
 INDEX_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/service/bundesratsbeschluesse-17466'
 PDF_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'#doesn't work anymore for e.g. Session 986
+BASE_URL = 'https://www.{pre}bevollmaechtigte.bremen.de'
 
 LINK_TEXT_RE = re.compile(r'(\d+)\. Sitzung')
 
@@ -26,15 +27,29 @@ def get_pdf_urls():
 
     response = requests.get(INDEX_URL.format(pre=PREFIX))
     root = etree.fromstring(response.content)
-    names = root.xpath('.//ul/li/a/span')
-    for name in names:
-        text = name.text_content()
+    namesLinks = root.xpath('//*[@id="main"]/div[3]/div/div[2]/ul/li/a')
+    namesTexts = root.xpath('//*[@id="main"]/div[3]/div/div[2]/ul/li/a/span') #Session Title inside span of a-tag -> zip it together to get both
+    for link, spanWithText in zip(namesLinks, namesTexts):
+        text = spanWithText.text_content()
         num = LINK_TEXT_RE.search(text)
+
         if num is None:
             continue
         num = int(num.group(1))
-        yield num, PDF_URL.format(pre= PREFIX, number=num)
+        if num == 955: #Special Session, no PDF available
+            continue
 
+        if "https" in link.attrib['href']: #Sometimes, they have relative href (e.g. 972) and sometimes absolute href (e.g. 971)
+            redirectLink = link.attrib['href']
+        else:
+            redirectLink = BASE_URL.format(pre=PREFIX) + link.attrib['href']
+
+        redirectResponse = requests.get(redirectLink)
+        redirectRoot = etree.fromstring(redirectResponse.content)
+        redirectName = redirectRoot.xpath('//*[@class="download"]')[0] #Only PDF Link has this class
+
+        pdfLink = BASE_URL.format(pre=PREFIX) + redirectName.attrib['href']
+        yield num, pdfLink
 
 #46a -> 046 a
 def reformat_top_num_type2(top_num, top_length):
