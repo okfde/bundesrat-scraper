@@ -17,7 +17,7 @@ import MainBoilerPlate
 
 INDEX_URL = 'https://niedersachsen.de/startseite/politik_staat/bundesrat/abstimmungsverhalten_niedersachsen_im_bundesrat/abstimmungsverhalten-niedersachsens-im-bundesrat-157696.html'
 
-NUM_RE = re.compile(r'(\d+)\. Sitzung des Bundesrates')
+NUM_RE = re.compile(r'(\d+)\. .*Sitzung des Bundesrates') #991 has "(Sonder-) Sitzung in name"
 LINK_TEXT_RE = re.compile(r'Abstimmungsverhalten und Beschlüsse vom.*') #In 2020 added "Abstimmungsverhalten und Beschlüsse des Bundesrates durch seine Europakammer am 21. April 2020" that I dont want, so added "vom" to regex
 SENAT_TEXT_RE = re.compile(r'^Haltung NI\s*:\s*(.*)')
 BR_TEXT_RE = re.compile(r'^Ergebnis BR\s*:\s*(.*)')
@@ -83,7 +83,40 @@ class TOPPositionFinder970MultiDigitNumber2(TOPPositionFinder970MultiDigitNumber
         # Do same as for 10-97 with different split of number
         return self._getNumberSelectionSplittedNumber(firstTwoDigits, lastPartNumber)
 
-#Senats/BR Texts in NS all have same formatting
+#Have problem here finding 18 b) TOP Position because ob "(LFG*B)" String in same TOP. Always marks this string, so forbid anychunk containing "G" for this exact TOP
+class TOPPositionFinder985TOP18b(PDFTextExtractor.DefaultTOPPositionFinder):
+
+    # Almost same as parent method, only forbid "G" in selection for this TOP
+    def _getSubpartSelectionNonStrictBelowNumberSelection(self, subpart,  numberSelection):
+        escapedSubpart = helper.escapeForRegex(subpart)
+        numberUpperBorder = self.cutter.all().filter(
+            doc_top__gte=numberSelection.doc_top - 50 ,
+        ) 
+        allSelectionsSubpartNonStrictBelowNumber = numberUpperBorder.filter(regex= "[^G]" + escapedSubpart) #Disallow G in Selection for TOP 18. b) because of "(LFGB)" getting attention too (although upper case?)
+        return self._getHighestSelection(allSelectionsSubpartNonStrictBelowNumber) 
+
+# For Niedersachsen e.g. 990 Format for TOP with Subpart is now e.g. 2.a and not 2. a) anymore
+# Yes, 980 still uses old format
+class TOPPositionFinderDifferentTOPSubpartFormat(PDFTextExtractor.DefaultTOPPositionFinder):
+    #In this session, subpart always in same chunk as number with format e.g. 2.a
+    #Chunk of TOP := Chunk of Subpart
+    def _getTOPSubpartSelection(self, top):
+        number, subpart = top.split() #46. b) -> [46., b)]
+        formattedTOP = number + subpart[:-1] #[46., b)] -> "46.b"
+        topSelection = self._getNumberSelection(formattedTOP) #Not only number, but still works
+        return topSelection
+
+#For Session 974, TOPs 53 to 57, they forgot to add point after TOP number
+class TOPPositionFinder974ForgotNumberPoint(PDFTextExtractor.DefaultTOPPositionFinder):
+    #Cut off . from e.g. before proceeding as usual
+    def _getNumberSelection(self, number):
+        numberWithoutPoint = number[:-1]
+        escapedNum = helper.escapeForRegex(numberWithoutPoint)
+        allSelectionsNumber = self.cutter.filter(auto_regex='^{}'.format(escapedNum))# Returns all Selections that have Chunks which start with the number
+        return self._getHighestSelection(allSelectionsNumber)
+
+
+#Senats/BR Texts in NS almost all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
         page_heading = 73 #Bottom of heading on each page
@@ -95,7 +128,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 
         #INFO Space relevant because without Rules broke because of "Ergebnisse" in NS 970 70a
         #INFO But can't filter 'Ergebnis BR' directly, because these two words are sometimes in different chunks
-        ergebnis_br = self.cutter.filter(auto_regex='^Ergebnis ').below(selectionCurrentTOP)
+        ergebnis_br = self.cutter.filter(auto_regex='^Ergebnis [^kz]').below(selectionCurrentTOP) #976 26 "Ergebnis keine ..." makes problems, so forbid k after Ergebnis Regex + 976 46. "Ergebnis Zustimmung" makes problems as well
+
 
         if selectionNextTOP:
             ergebnis_br = ergebnis_br.above(selectionNextTOP)
@@ -106,6 +140,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             top__gte=page_heading,
             bottom__lt=page_footer,
         )
+
 
         br_text = self.cutter.all().filter(
             doc_top__gte=ergebnis_br.doc_top - 1 ,#Relative to all pages
@@ -120,6 +155,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 
         #Cut away "Haltung NI:" and "Ergebnis BR:" from text
     #    print("current_top", current_top.clean_text())
+
         senats_text = senats_text.clean_text()
     #    print("next top", next_top)
     #    print("senats_text", senats_text)
@@ -132,6 +168,72 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             br_text = BR_TEXT_RE.search(br_text).group(1)
         return senats_text, br_text
 
+#Session 988 for NS doesn't have all TOPs in it, skips the ones not discussed -> currentTOP/nextTOP can be empty! Have to compute next TOP out of current TOP alone as bottom border for texts
+#Don't extend DefaultTOPPositionFinder here, because this one doesn't know if its currently searching for current or next TOP, so can't distiguish there
+class SenatsAndBRTextExtractor988(SenatsAndBRTextExtractor):
+
+    #If selection for current TOP is empty -> current TOP not discussed -> return empty strings for text
+    #If selection for next TOP is empty -> Have to find alternative next TOP below current TOP as bottom border for texts
+    def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
+        if len(selectionCurrentTOP) == 0:
+            return "", "" #TOP not discussed -> No Senats/BR Text
+        #Recomputer alternative next TOP if there exists one
+        if len(selectionNextTOP) == 0:
+            # All Strings below current TOP and in same column (left/right almost equal
+            selectionsNextPDFTOPs = self.cutter.all().filter(
+                    doc_top__gt  = selectionCurrentTOP.doc_top,
+                    left__gte = selectionCurrentTOP.left - 10,
+                    right__lte = selectionCurrentTOP.right + 30, #Offset for subpart
+            )
+            selectionDirectNextTOP = self._getHighestSelectionNotEmpty(selectionsNextPDFTOPs)# Could be empty, but this is handeled by super method as well
+            return super()._extractSenatBRTexts(selectionCurrentTOP, selectionDirectNextTOP)
+
+        #Both Selecions present -> proceed as usual
+        return super()._extractSenatBRTexts(selectionCurrentTOP, selectionNextTOP)
+
+    #Fork of DefaultTOPPositionFinder class in PDFTextExtractor File, but need it now for finding alternative next TOP as well, so just copy-pasted it and added not empty Selecion Check.
+    def _getHighestSelectionNotEmpty(self, selections): 
+        if len(selections) == 0: #min throws error for empty set
+            return selections
+        #notEmptySelecions = selections.filter(regex="[^ ]+")
+#        return min(notEmptySelecions, key= lambda x: x.doc_top)
+        return min(selections, key= lambda x: x.doc_top)
+
+#NS forgot to add 31b), 33 in PDF of session 983, so for selection of 31. b) as next TOP, give 32. for 33) give 34.) , and as current TOP give Nothing
+#Don't extend DefaultTOPPositionFinder here, because this one doesn't know if its currently searching for current or next TOP, so can't distinguish there
+class SenatsAndBRTextExtractor983SpecialTOPs31b33(SenatsAndBRTextExtractor):
+
+    #If selection for current TOP is empty -> current TOP not discussed -> return empty strings for text
+    #If selection for next TOP is empty -> Have to find alternative next TOP below current TOP as bottom border for texts
+    def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
+
+        #wrong 31. b) selection matches "(SGB)" Subtring (although upper case?) -> Return no text
+        if "(SGB)" in selectionCurrentTOP.clean_text():
+            return "", "" #TOP not discussed -> No Senats/BR Text
+        #wrong 31. b) selection matches "(SGB)" Subtring (although upper case?) -> use TOP 32. as bottom border for texts
+
+        #CurrentTOP is last in PDF, therefore selectionNextTOP is None -> Proceed as usual
+        if selectionNextTOP == None:
+            return super()._extractSenatBRTexts(selectionCurrentTOP, selectionNextTOP)
+
+        if "(SGB)" in selectionNextTOP.clean_text():
+            selecionNextTOP32 = PDFTextExtractor.DefaultTOPPositionFinder(self.cutter).getTOPSelection("32.") #Search for TOP 32 Chunk
+            #Proceed as usual
+            return super()._extractSenatBRTexts(selectionCurrentTOP, selecionNextTOP32)
+
+        #wrong 33. selection selects nothing -> Return no text
+        if len(selectionCurrentTOP) == 0:
+            return "", "" #TOP not discussed -> No Senats/BR Text
+
+        #wrong 33. selection selects nothing -> use TOP 34. as bottom border for texts
+        if len(selectionNextTOP) == 0 :
+            selecionNextTOP34 = PDFTextExtractor.DefaultTOPPositionFinder(self.cutter).getTOPSelection("34.") #Search for TOP 34 Chunk
+            #Proceed as usual
+            return super()._extractSenatBRTexts(selectionCurrentTOP, selecionNextTOP34)
+
+        #Both Selections Good -> Proceed as usual
+        return super()._extractSenatBRTexts(selectionCurrentTOP, selectionNextTOP)
+
 class NSTextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
@@ -141,9 +243,20 @@ class NSTextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             return TOPPositionFinder970MultiDigitNumber(self.cutter)
         elif self.sessionNumber == 970 and int(top.split()[0][:-1]) >= 98 :
             return TOPPositionFinder970MultiDigitNumber2(self.cutter)
+        elif self.sessionNumber in [990,982,981, 979]:
+            return TOPPositionFinderDifferentTOPSubpartFormat(self.cutter)
+        elif self.sessionNumber == 974 and 53 <= int(top.split()[0][:-1]) <= 57:
+            return TOPPositionFinder974ForgotNumberPoint(self.cutter)
+        elif self.sessionNumber == 985 and top == "18. b)":
+            return TOPPositionFinder985TOP18b(self.cutter)
+
         return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
-    #In NS all Text Rules are consistent
+    #In NS all Text Rules almost are consistent except 988
     def _getRightSenatBRTextExtractor(self, top, cutter): 
+        if self.sessionNumber == 988:
+            return SenatsAndBRTextExtractor988(cutter)
+        if self.sessionNumber == 983:
+            return SenatsAndBRTextExtractor983SpecialTOPs31b33(cutter)
         return SenatsAndBRTextExtractor(cutter)
