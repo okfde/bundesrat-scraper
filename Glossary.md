@@ -10,6 +10,7 @@
 * TOP (Tagesordnungspunkt)
   * Determined by number and (if present) the Subpart and (if present) Dot/Bracket
     * e.g. 32. , 34. a) (but not 34. alone ) , 23. e)
+  * Counties/Bundesländer can vote for a TOP either with Zustimmen (Yes), Ablehnen (No), or Enthalten (out/abstain)
 
 * Number of TOP
   * Number part of TOP, can be same as TOP
