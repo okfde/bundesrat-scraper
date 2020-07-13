@@ -56,6 +56,15 @@
   * Strict, because `cutter.below(selection)` is strict, never contains `selection`
     * To circumvent this, do:
 
+* Next TOP
+  * Numerical/Subpart wise next TOP
+  * e.g. next TOP of 1. is 2. a), next TOP of 2. b) is 3.
+
+* Next Direct TOP
+  * Some Counties dont order TOPs by Number/Subpart (e.g. NS 988 , RP)
+    * Then we need to find the next direct TOP as lower bound  , i.e. the TOP that follows current TOP in PDF
+  * e.g. next TOP of 1. is 2. a), but next direct TOP of 1. might be 30. 
+
 ```
             nonStrictSelections = self.cutter.all().filter(
                 doc_top__gte=selection.doc_top - 1, #Upper Border a little bit higher -> Non-Strict
