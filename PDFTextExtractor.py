@@ -1,10 +1,13 @@
 import pdfcutter
 import helper
+import selectionVisualizer as dVis
 
 #Helper Class for SenatAndBRTextParser
 #Rules for finding position(Selection) of given TOP in a PDF
 #These positions are necessary for parsing Senat/BR Text for given TOP
 #Rules different for each County, so Counties can derive this class
+#Default: Search for first occurance TOP Number (1.) 
+#and if TOP has Subpart, then return first Selection containing Subpart (b)) (not stricty) below TOP Number, else return TOP Number Selection
 class DefaultTOPPositionFinder:
 
     def __init__(self, cutter):
@@ -51,6 +54,29 @@ class DefaultTOPPositionFinder:
         #Return highest of these
         #INFO adding number chunk as upperbound can break this when subpart chunk == number chunk
         return self._getHighestSelection(allSelectionsSubpartNonStrictBelowNumber) 
+
+#Sometimes you cant uncouple TOP Number from Subpart (e.g. BA 985 8a). instead of 8. a))
+#Then take this class
+#In: cutter, formatString e.g. "{number}{subpart})." which tells where to add number/subpart (not escaped)
+#For TOPs without subpart, same behavior as DefaultTOPPositionFinder
+class EntwinedNumberSubpartTOPPositionFinder(DefaultTOPPositionFinder):
+
+    def __init__(self, cutter, formatSubpartTOP):
+        self.formatSubpartTOP = formatSubpartTOP
+        super().__init__(cutter)
+
+    #Subpart not always inside same chunk as number, so first get selection s for number, then return selection s2 for first chunk containing subpart that is (non-strict) below s
+    #Chunk of TOP := Chunk of Subpart
+    #rn: formatString has number and subpart placeholder, search for TOPs with Subpart directly by this given format
+    def _getTOPSubpartSelection(self, top):
+        number, subpart = top.split() #46. b) -> [46., b)]
+        onlyNumber = number[:-1] #46. -> 46
+        onlySubpart = subpart[:-1] #b) -> b
+        topRightFormat = self.formatSubpartTOP.format(number = onlyNumber, subpart = onlySubpart)
+        topSelection = self._getNumberSelection(topRightFormat) #Not only number, but still works
+        #dVis.showCutter(topSelection)
+        return topSelection
+
 
 #Main Task for this class is returning Senats/BR Texts
 #Still have to implement _extractSenatBRTexts, _getRightTOPPositionFinder methods
