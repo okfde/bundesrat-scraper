@@ -36,3 +36,27 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
             else:
                 realLink = BASE_URL + link 
             yield num, realLink
+
+#Senats/BR Texts and TOPS in BA  all have same formatting
+class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
+
+    #Can't uncouple Subpart from number TOP (e.g. BA 985 "9a)." ) , so use EntwinedNumberSubpartTOPPositionFinder for this
+    def _getRightTOPPositionFinder(self, top):
+        formatTOPsWithSubpart="{number}{subpart})." #e.g. BA 985 9. a) is "9a)."
+        if self.sessionNumber == 940 and top == "6. b)":
+            formatTOPsWithSubpart="{number}{subpart})" #e.g. 6b) in BA 940
+        return PDFTextExtractor.EntwinedNumberSubpartTOPPositionFinder(self.cutter, formatTOPsWithSubpart)
+
+    # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
+    #In BA all Text Rules are consistent
+    def _getRightSenatBRTextExtractor(self, top, cutter): 
+        return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(cutter,
+                # Taken from pdftohtml -xml output
+                page_heading = 129,
+                page_footer = 773,
+                senatLeft = 565,
+                brLeft = 855,
+         )
+
+
+
