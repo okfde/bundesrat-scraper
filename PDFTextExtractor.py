@@ -1,10 +1,13 @@
 import pdfcutter
 import helper
+import selectionVisualizer as dVis
 
 #Helper Class for SenatAndBRTextParser
 #Rules for finding position(Selection) of given TOP in a PDF
 #These positions are necessary for parsing Senat/BR Text for given TOP
 #Rules different for each County, so Counties can derive this class
+#Default: Search for first occurance TOP Number (1.) 
+#and if TOP has Subpart, then return first Selection containing Subpart (b)) (not stricty) below TOP Number, else return TOP Number Selection
 class DefaultTOPPositionFinder:
 
     def __init__(self, cutter):
@@ -52,6 +55,29 @@ class DefaultTOPPositionFinder:
         #INFO adding number chunk as upperbound can break this when subpart chunk == number chunk
         return self._getHighestSelection(allSelectionsSubpartNonStrictBelowNumber) 
 
+#Sometimes you cant uncouple TOP Number from Subpart (e.g. BA 985 8a). instead of 8. a))
+#Then take this class
+#In: cutter, formatString e.g. "{number}{subpart})." which tells where to add number/subpart (not escaped)
+#For TOPs without subpart, same behavior as DefaultTOPPositionFinder
+class EntwinedNumberSubpartTOPPositionFinder(DefaultTOPPositionFinder):
+
+    def __init__(self, cutter, formatSubpartTOP):
+        self.formatSubpartTOP = formatSubpartTOP
+        super().__init__(cutter)
+
+    #Subpart not always inside same chunk as number, so first get selection s for number, then return selection s2 for first chunk containing subpart that is (non-strict) below s
+    #Chunk of TOP := Chunk of Subpart
+    #rn: formatString has number and subpart placeholder, search for TOPs with Subpart directly by this given format
+    def _getTOPSubpartSelection(self, top):
+        number, subpart = top.split() #46. b) -> [46., b)]
+        onlyNumber = number[:-1] #46. -> 46
+        onlySubpart = subpart[:-1] #b) -> b
+        topRightFormat = self.formatSubpartTOP.format(number = onlyNumber, subpart = onlySubpart)
+        topSelection = self._getNumberSelection(topRightFormat) #Not only number, but still works
+        #dVis.showCutter(topSelection)
+        return topSelection
+
+
 #Main Task for this class is returning Senats/BR Texts
 #Still have to implement _extractSenatBRTexts, _getRightTOPPositionFinder methods
 class AbstractSenatsAndBRTextExtractor:
@@ -65,6 +91,65 @@ class AbstractSenatsAndBRTextExtractor:
     #Out: tuple of clean_text of senats/BR Text
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
         raise NotImplementedError()
+
+#Default Text Extractor for Tables where senat/br texts *right* to TOP (not below). Just give it the pixels where the Tables split and you are good to go
+class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
+
+    #Send also column end/starts (Taken from pdftohtml -xml output
+    #page_heading = px Bottom of heading on each page
+    #page_footer = px Upper of footer on each page
+    def __init__(self, cutter, page_heading, page_footer , senatLeft, brLeft,  senatRight= None, brRight = None ): #Go to complete right in default br text
+        #Can't depend on other parameters for default, so do it like this
+        if senatRight is None:
+            senatRight = brLeft
+        if brRight is None:
+            brRight = cutter.all().right
+
+        self.page_heading = page_heading
+        self.page_footer = page_footer
+
+        self.senatLeft = senatLeft
+        self.senatRight = senatRight
+        self.brLeft = brLeft
+        self.brRight = brRight
+        super().__init__(cutter)
+
+    #Out: tuple of clean_text of senats/BR Text
+    def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
+        if selectionNextTOP is None:
+            selectionNextTOP = selectionCurrentTOP.empty()
+        #Need for some reason everywhere small offset, dont know why, but it works
+        senats_text = self.cutter.all().filter(
+                doc_top__gte = selectionCurrentTOP.doc_top - 10, #Also look at row with TOP in it
+                doc_top__lt = selectionNextTOP.doc_top-10, # Lower Bound
+
+                top__gte=self.page_heading,
+                bottom__lt=self.page_footer,
+
+                left__gte = self.senatLeft - 10,
+                right__lt = self.senatRight+10,
+        )
+        br_text = self.cutter.all().filter(
+                doc_top__gte = selectionCurrentTOP.doc_top - 10, #Also look at row with TOP in it
+                doc_top__lt = selectionNextTOP.doc_top-10, # Lower Bound
+
+                top__gte=self.page_heading,
+                bottom__lt=self.page_footer,
+
+                left__gte = self.brLeft -10,
+                right__lt = self.brRight + 10,
+        )
+#        dVis.showCutter(selectionNextTOP)
+#        dVis.showCutter(senats_text)
+#        dVis.showCutter(br_text)
+
+        senats_text = senats_text.clean_text()
+        br_text = br_text.clean_text()
+        #print(senats_text)
+        #print("1")
+        #print(br_text)
+        #print("--")
+        return senats_text, br_text
 
 
 #Class that only holds a DefaultTOPPositionFinder and AbstractSenatsAndBRTextExtractor Subclass instance so that one can hot swap it when format PDF switches
