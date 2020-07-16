@@ -40,12 +40,13 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 #Senats/BR Texts and TOPS in BA  all have same formatting
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
 
-    #Can't uncouple Subpart from number TOP (e.g. BA 985 "9a)." ) , so use EntwinedNumberSubpartTOPPositionFinder for this
+    #Can't uncouple Subpart from number TOP (e.g. BA 985 "9a)." ) , so use CustomTOPFormatPositionFinder for this
+    #Still use default format for number only TOPs
     def _getRightTOPPositionFinder(self, top):
         formatTOPsWithSubpart="{number}{subpart})." #e.g. BA 985 9. a) is "9a)."
         if self.sessionNumber == 940 and top == "6. b)":
             formatTOPsWithSubpart="{number}{subpart})" #e.g. 6b) in BA 940
-        return PDFTextExtractor.EntwinedNumberSubpartTOPPositionFinder(self.cutter, formatTOPsWithSubpart)
+        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart)
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In BA all Text Rules are consistent
