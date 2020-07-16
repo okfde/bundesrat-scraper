@@ -56,26 +56,41 @@ class DefaultTOPPositionFinder:
         return self._getHighestSelection(allSelectionsSubpartNonStrictBelowNumber) 
 
 #Sometimes you cant uncouple TOP Number from Subpart (e.g. BA 985 8a). instead of 8. a))
+#Or TOPs look minimaly different than usual ("9 a)" instead of "9. a)")
 #Then take this class
-#In: cutter, formatString e.g. "{number}{subpart})." which tells where to add number/subpart (not escaped)
+#In: cutter, formatString for top with only number "{number}" and formatString for TOP with subpart e.g. "{number}{subpart})." which tells where to add number/subpart (not escaped)
 #For TOPs without subpart, same behavior as DefaultTOPPositionFinder
-class EntwinedNumberSubpartTOPPositionFinder(DefaultTOPPositionFinder):
+class CustomTOPFormatPositionFinder(DefaultTOPPositionFinder):
 
-    def __init__(self, cutter, formatSubpartTOP):
+    #Default Formats like shown in Glossary
+    def __init__(self, cutter, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
+        self.formatNumberOnlyTOP = formatNumberOnlyTOP
         self.formatSubpartTOP = formatSubpartTOP
         super().__init__(cutter)
 
+    #Look for number with given formatNumberOnlyTOP String at *beginning* of selections
+    #Used e.g. HA 985 "TOP 4"
+    def _getNumberSelection(self, number):
+        onlyNumber = number[:-1] #46. -> 46
+        topRightFormat = self.formatNumberOnlyTOP.format(number=onlyNumber)
+        return super()._getNumberSelection(topRightFormat)
+
+
     #Subpart not always inside same chunk as number, so first get selection s for number, then return selection s2 for first chunk containing subpart that is (non-strict) below s
     #Chunk of TOP := Chunk of Subpart
-    #rn: formatString has number and subpart placeholder, search for TOPs with Subpart directly by this given format
+    #In: formatString has "number" and "subpart" placeholder, search for TOPs with Subpart directly by this given format
     def _getTOPSubpartSelection(self, top):
         number, subpart = top.split() #46. b) -> [46., b)]
         onlyNumber = number[:-1] #46. -> 46
         onlySubpart = subpart[:-1] #b) -> b
         topRightFormat = self.formatSubpartTOP.format(number = onlyNumber, subpart = onlySubpart)
-        topSelection = self._getNumberSelection(topRightFormat) #Not only number, but still works
+        topSelection = self._getPrefixStringSelection(topRightFormat)
         #dVis.showCutter(topSelection)
         return topSelection
+
+    #Returns highest selection that *starts* with string s (Not-Escaped)
+    def _getPrefixStringSelection(self, s):
+        return super()._getNumberSelection(s) #Not always only number, but still works
 
 
 #Main Task for this class is returning Senats/BR Texts
