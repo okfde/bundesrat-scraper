@@ -10,8 +10,13 @@ import selectionVisualizer as dVis
 #and if TOP has Subpart, then return first Selection containing Subpart (b)) (not stricty) below TOP Number, else return TOP Number Selection
 class DefaultTOPPositionFinder:
 
-    def __init__(self, cutter):
+    #TOPRight = max px where TOP can *start*. Useful if TOP has very broad format (like HE 992 30,31,55 or MV), which would match a lot of (false) things besides TOP. Used mostly with VerticalSenatsAndBRTextExtractor 
+    def __init__(self, cutter, TOPRight = None):
+        if TOPRight is None:
+            TOPRight = cutter.all().right
+
         self.cutter = cutter #Needed everywhere, so store it here
+        self.TOPRight = TOPRight
 
     def getTOPSelection(self, top):
 
@@ -32,7 +37,9 @@ class DefaultTOPPositionFinder:
 
     def _getNumberSelection(self, number):
         escapedNum = helper.escapeForRegex(number)
-        allSelectionsNumber = self.cutter.filter(auto_regex='^{}'.format(escapedNum))# Returns all Selections that have Chunks which start with the number
+        allSelectionsNumber = self.cutter.filter(auto_regex='^{}'.format(escapedNum)).filter( # Returns all Selections that have Chunks which start with the number
+                left__lte = self.TOPRight #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+        )
         return self._getHighestSelection(allSelectionsNumber)
 
     #pdfcutter sorts selections by height on page, not by absolute (doc_top) height. We do this here
@@ -50,7 +57,9 @@ class DefaultTOPPositionFinder:
         ) # INFO a) for 1. a) NS 970 in same chunk, for 34. a) not
 
         # All Chunks non-strict below number chunk that contain given subpart
-        allSelectionsSubpartNonStrictBelowNumber = numberUpperBorder.filter(auto_regex=escapedSubpart) #46. b) -> b\) because of regex brackets
+        allSelectionsSubpartNonStrictBelowNumber = numberUpperBorder.filter(auto_regex=escapedSubpart).filter( #46. b) -> b\) because of regex brackets
+                left__lte = self.TOPRight #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+        )
         #Return highest of these
         #INFO adding number chunk as upperbound can break this when subpart chunk == number chunk
         return self._getHighestSelection(allSelectionsSubpartNonStrictBelowNumber) 
@@ -63,10 +72,11 @@ class DefaultTOPPositionFinder:
 class CustomTOPFormatPositionFinder(DefaultTOPPositionFinder):
 
     #Default Formats like shown in Glossary
-    def __init__(self, cutter, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
+    def __init__(self, cutter, TOPRight = None, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
+
         self.formatNumberOnlyTOP = formatNumberOnlyTOP
         self.formatSubpartTOP = formatSubpartTOP
-        super().__init__(cutter)
+        super().__init__(cutter, TOPRight)
 
     #Look for number with given formatNumberOnlyTOP String at *beginning* of selections
     #Used e.g. HA 985 "TOP 4"
