@@ -10,8 +10,13 @@ import selectionVisualizer as dVis
 #and if TOP has Subpart, then return first Selection containing Subpart (b)) (not stricty) below TOP Number, else return TOP Number Selection
 class DefaultTOPPositionFinder:
 
-    def __init__(self, cutter):
+    #TOPRight = max px where TOP can *start*. Useful if TOP has very broad format (like HE 992 30,31,55 or MV), which would match a lot of (false) things besides TOP. Used mostly with VerticalSenatsAndBRTextExtractor 
+    def __init__(self, cutter, TOPRight = None):
+        if TOPRight is None:
+            TOPRight = cutter.all().right
+
         self.cutter = cutter #Needed everywhere, so store it here
+        self.TOPRight = TOPRight
 
     def getTOPSelection(self, top):
 
@@ -32,7 +37,9 @@ class DefaultTOPPositionFinder:
 
     def _getNumberSelection(self, number):
         escapedNum = helper.escapeForRegex(number)
-        allSelectionsNumber = self.cutter.filter(auto_regex='^{}'.format(escapedNum))# Returns all Selections that have Chunks which start with the number
+        allSelectionsNumber = self.cutter.filter(auto_regex='^{}'.format(escapedNum)).filter( # Returns all Selections that have Chunks which start with the number
+                left__lte = self.TOPRight #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+        )
         return self._getHighestSelection(allSelectionsNumber)
 
     #pdfcutter sorts selections by height on page, not by absolute (doc_top) height. We do this here
@@ -50,7 +57,9 @@ class DefaultTOPPositionFinder:
         ) # INFO a) for 1. a) NS 970 in same chunk, for 34. a) not
 
         # All Chunks non-strict below number chunk that contain given subpart
-        allSelectionsSubpartNonStrictBelowNumber = numberUpperBorder.filter(auto_regex=escapedSubpart) #46. b) -> b\) because of regex brackets
+        allSelectionsSubpartNonStrictBelowNumber = numberUpperBorder.filter(auto_regex=escapedSubpart).filter( #46. b) -> b\) because of regex brackets
+                left__lte = self.TOPRight #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+        )
         #Return highest of these
         #INFO adding number chunk as upperbound can break this when subpart chunk == number chunk
         return self._getHighestSelection(allSelectionsSubpartNonStrictBelowNumber) 
@@ -63,10 +72,11 @@ class DefaultTOPPositionFinder:
 class CustomTOPFormatPositionFinder(DefaultTOPPositionFinder):
 
     #Default Formats like shown in Glossary
-    def __init__(self, cutter, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
+    def __init__(self, cutter, TOPRight = None, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
+
         self.formatNumberOnlyTOP = formatNumberOnlyTOP
         self.formatSubpartTOP = formatSubpartTOP
-        super().__init__(cutter)
+        super().__init__(cutter, TOPRight)
 
     #Look for number with given formatNumberOnlyTOP String at *beginning* of selections
     #Used e.g. HA 985 "TOP 4"
@@ -113,7 +123,8 @@ class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
     #Send also column end/starts (Taken from pdftohtml -xml output
     #page_heading = px Bottom of heading on each page
     #page_footer = px Upper of footer on each page
-    def __init__(self, cutter, page_heading, page_footer , senatLeft, brLeft,  senatRight= None, brRight = None ): #Go to complete right in default br text
+    #offset = Look around x px to each side to catch text 
+    def __init__(self, cutter, page_heading, page_footer , senatLeft, brLeft,  senatRight= None, brRight = None, offset=10 ): #Go to complete right in default br text
         #Can't depend on other parameters for default, so do it like this
         if senatRight is None:
             senatRight = brLeft
@@ -127,6 +138,7 @@ class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
         self.senatRight = senatRight
         self.brLeft = brLeft
         self.brRight = brRight
+        self.offset = offset # Look around x px to each side to catch text
         super().__init__(cutter)
 
     #Out: tuple of clean_text of senats/BR Text
@@ -135,24 +147,24 @@ class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
             selectionNextTOP = selectionCurrentTOP.empty()
         #Need for some reason everywhere small offset, dont know why, but it works
         senats_text = self.cutter.all().filter(
-                doc_top__gte = selectionCurrentTOP.doc_top - 10, #Also look at row with TOP in it
-                doc_top__lt = selectionNextTOP.doc_top-10, # Lower Bound
+                doc_top__gte = selectionCurrentTOP.doc_top - self.offset, #Also look at row with TOP in it
+                doc_top__lt = selectionNextTOP.doc_top - self.offset, # Lower Bound
 
                 top__gte=self.page_heading,
                 bottom__lt=self.page_footer,
 
-                left__gte = self.senatLeft - 10,
-                right__lt = self.senatRight+10,
+                left__gte = self.senatLeft - self.offset,
+                right__lt = self.senatRight + self.offset,
         )
         br_text = self.cutter.all().filter(
-                doc_top__gte = selectionCurrentTOP.doc_top - 10, #Also look at row with TOP in it
-                doc_top__lt = selectionNextTOP.doc_top-10, # Lower Bound
+                doc_top__gte = selectionCurrentTOP.doc_top - self.offset, #Also look at row with TOP in it
+                doc_top__lt = selectionNextTOP.doc_top - self.offset, # Lower Bound
 
                 top__gte=self.page_heading,
                 bottom__lt=self.page_footer,
 
-                left__gte = self.brLeft -10,
-                right__lt = self.brRight + 10,
+                left__gte = self.brLeft - self.offset,
+                right__lt = self.brRight + self.offset,
         )
 #        dVis.showCutter(selectionNextTOP)
 #        dVis.showCutter(senats_text)
