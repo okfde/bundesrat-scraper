@@ -113,7 +113,8 @@ class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
     #Send also column end/starts (Taken from pdftohtml -xml output
     #page_heading = px Bottom of heading on each page
     #page_footer = px Upper of footer on each page
-    def __init__(self, cutter, page_heading, page_footer , senatLeft, brLeft,  senatRight= None, brRight = None ): #Go to complete right in default br text
+    #offset = Look around x px to each side to catch text 
+    def __init__(self, cutter, page_heading, page_footer , senatLeft, brLeft,  senatRight= None, brRight = None, offset=10 ): #Go to complete right in default br text
         #Can't depend on other parameters for default, so do it like this
         if senatRight is None:
             senatRight = brLeft
@@ -127,6 +128,7 @@ class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
         self.senatRight = senatRight
         self.brLeft = brLeft
         self.brRight = brRight
+        self.offset = offset # Look around x px to each side to catch text
         super().__init__(cutter)
 
     #Out: tuple of clean_text of senats/BR Text
@@ -135,24 +137,24 @@ class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
             selectionNextTOP = selectionCurrentTOP.empty()
         #Need for some reason everywhere small offset, dont know why, but it works
         senats_text = self.cutter.all().filter(
-                doc_top__gte = selectionCurrentTOP.doc_top - 10, #Also look at row with TOP in it
-                doc_top__lt = selectionNextTOP.doc_top-10, # Lower Bound
+                doc_top__gte = selectionCurrentTOP.doc_top - self.offset, #Also look at row with TOP in it
+                doc_top__lt = selectionNextTOP.doc_top - self.offset, # Lower Bound
 
                 top__gte=self.page_heading,
                 bottom__lt=self.page_footer,
 
-                left__gte = self.senatLeft - 10,
-                right__lt = self.senatRight+10,
+                left__gte = self.senatLeft - self.offset,
+                right__lt = self.senatRight + self.offset,
         )
         br_text = self.cutter.all().filter(
-                doc_top__gte = selectionCurrentTOP.doc_top - 10, #Also look at row with TOP in it
-                doc_top__lt = selectionNextTOP.doc_top-10, # Lower Bound
+                doc_top__gte = selectionCurrentTOP.doc_top - self.offset, #Also look at row with TOP in it
+                doc_top__lt = selectionNextTOP.doc_top - self.offset, # Lower Bound
 
                 top__gte=self.page_heading,
                 bottom__lt=self.page_footer,
 
-                left__gte = self.brLeft -10,
-                right__lt = self.brRight + 10,
+                left__gte = self.brLeft - self.offset,
+                right__lt = self.brRight + self.offset,
         )
 #        dVis.showCutter(selectionNextTOP)
 #        dVis.showCutter(senats_text)
