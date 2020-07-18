@@ -51,3 +51,32 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
                realLink = BASE_URL + link 
             yield num, realLink
 
+#Senats/BR Texts and TOPS in BA  all have same formatting
+class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
+
+    #Can't uncouple Subpart from number TOP (e.g. BA 985 "9a)." ) , so use CustomTOPFormatPositionFinder for this
+    #Still use default format for number only TOPs
+    def _getRightTOPPositionFinder(self, top):
+        formatNumberOnlyTOPs="{number}" #e.g. MV 985 1. is "1"
+        formatTOPsWithSubpart="{number} {subpart})" #e.g. MV 985 9. a) is "9 a)"
+        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatNumberOnlyTOP = formatNumberOnlyTOPs, formatSubpartTOP=formatTOPsWithSubpart, TOPRight=160)
+
+    # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
+    #In BA all Text Rules are consistent
+    def _getRightSenatBRTextExtractor(self, top, cutter): 
+        senatLeft = 525 #Default
+        brLeft = 855
+        if 972 <= self.sessionNumber <= 984: #Different Table Sizes
+            senatLeft = 505
+            brLeft = 825
+
+        return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(cutter,
+                # Taken from pdftohtml -xml output
+                page_heading = 70,
+                page_footer = 1262,
+                senatLeft = senatLeft,
+                brLeft = brLeft,
+         )
+
+
+
