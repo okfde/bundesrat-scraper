@@ -11,12 +11,14 @@ import selectionVisualizer as dVis
 class DefaultTOPPositionFinder:
 
     #TOPRight = max px where TOP can *start*. Useful if TOP has very broad format (like HE 992 30,31,55 or MV), which would match a lot of (false) things besides TOP. Used mostly with VerticalSenatsAndBRTextExtractor 
-    def __init__(self, cutter, TOPRight = None):
+    #page_heading = bottom of page header in px (from pdftohtml) . Useful when number format very broad (e.g. TH 986 "1") and there is some number in header that matches TOP Number (e.g. TH 986 the TOP Number "9" matches "986" session number in header
+    def __init__(self, cutter, TOPRight = None, page_heading=0):
         if TOPRight is None:
             TOPRight = cutter.all().right
 
         self.cutter = cutter #Needed everywhere, so store it here
         self.TOPRight = TOPRight
+        self.page_heading = page_heading
 
     def getTOPSelection(self, top):
 
@@ -38,7 +40,8 @@ class DefaultTOPPositionFinder:
     def _getNumberSelection(self, number):
         escapedNum = helper.escapeForRegex(number)
         allSelectionsNumber = self.cutter.filter(auto_regex='^{}'.format(escapedNum)).filter( # Returns all Selections that have Chunks which start with the number
-                left__lte = self.TOPRight #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+                left__lte = self.TOPRight, #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+                top__gte=self.page_heading,
         )
         return self._getHighestSelection(allSelectionsNumber)
 
@@ -58,7 +61,8 @@ class DefaultTOPPositionFinder:
 
         # All Chunks non-strict below number chunk that contain given subpart
         allSelectionsSubpartNonStrictBelowNumber = numberUpperBorder.filter(auto_regex=escapedSubpart).filter( #46. b) -> b\) because of regex brackets
-                left__lte = self.TOPRight #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+                left__lte = self.TOPRight, #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+                top__gte=self.page_heading,
         )
         #Return highest of these
         #INFO adding number chunk as upperbound can break this when subpart chunk == number chunk
@@ -72,11 +76,11 @@ class DefaultTOPPositionFinder:
 class CustomTOPFormatPositionFinder(DefaultTOPPositionFinder):
 
     #Default Formats like shown in Glossary
-    def __init__(self, cutter, TOPRight = None, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
+    def __init__(self, cutter, TOPRight = None, page_heading=0, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
 
         self.formatNumberOnlyTOP = formatNumberOnlyTOP
         self.formatSubpartTOP = formatSubpartTOP
-        super().__init__(cutter, TOPRight)
+        super().__init__(cutter, TOPRight, page_heading)
 
     #Look for number with given formatNumberOnlyTOP String at *beginning* of selections
     #Used e.g. HA 985 "TOP 4"
