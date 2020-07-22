@@ -132,3 +132,120 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         subpart_cell = number_row.xpath('./following-sibling::tr/td/ol/li[@value="{}"]'.format(subpartLetterNumber + offsetSubpart))[0] #Find Tags that are below number row and start with subpart as text inside a cell/list/list. First Match is cell of right subpartmore than one
         subpart_row = subpart_cell.xpath('../../..')[0] #ol -> td -> tr like in _getTOPTableRowDefault Method
         return(subpart_row)
+
+    #Decide for sessionNumber and currentTOP, which extractor needed for currentTOPRow
+    #Out: (senats_text, br_text) tuple
+    def _extractSenatBRTexts(self, currentTOPRow, currentTOP):
+        if self.missingTOPInTable(currentTOP): #NRW Forgot them to add these TOPs -> No Text
+            return "", ""
+
+        if (self.sessionNumber == 986 and currentTOP == "2.") or (self.sessionNumber == 989 and (currentTOP == "58." or currentTOP == "66." )) or (self.sessionNumber == 992 and (currentTOP == "2." or currentTOP == "14.")) or (self.sessionNumber == 982 and currentTOP == "5." ) or (self.sessionNumber == 971 and currentTOP in ["61.", "64."]) or (self.sessionNumber == 962 and currentTOP in ["1.", "2."]) or (self.sessionNumber == 960 and "21" in currentTOP): #Senats and BR Text in two different p-tags
+            return self._extractSenatBRTextsTwoPTags(currentTOPRow)
+
+        if self.subpartIsListValue(currentTOP) or (self.sessionNumber == 984 and currentTOP == "51. b)"): #Subpart by list value attribute, not directly written in table, Need 984 51. b) extra wrt extractTOP - Part because 984 51. b) again a different case for TOP extraction, but not for text extraction
+            return self._extractSenatBRTextsSubpartAsListValue(currentTOPRow)
+
+        if (self.sessionNumber == 976 and currentTOP == "33.") or (self.sessionNumber == 962 and currentTOP == "9."): #two p-tags, but Senats and BR Text still both in the first one
+            return self._extractSenatBRTextsDefault(currentTOPRow, secondPTagEmpty = True)
+
+        if self.sessionNumber == 963 and currentTOP in ["11. a)", "11. b)", "11. c)"]: # 963 11. a) to c) have no br_text nor senats_text, therefore no p-tag -> would cause Error. So return no text directly. But, 963 11. d) back normal
+            return "", "" 
+
+        # INFO: Some TOPs of 962, 961 already already catched above!
+        if self.sessionNumber == 962 or self.sessionNumber == 961: #"NRW:" not underlined, so need different method to find it
+            return self._extractSenatBRTextsNRWNotUnderlined(currentTOPRow)
+
+        if self.sessionNumber == 960 and currentTOP == "55.": #960 55. has two blocks with senat text (Start with "NRW:" -> Give hint to method that this is ok in this case
+            return self._extractSenatBRTextsDefault(currentTOPRow, twoSenatsTextBlocks = True)
+
+        return self._extractSenatBRTextsDefault(currentTOPRow)
+
+    #Senats and BR Text both in same p-tag, seperate both texts on "NRW:" label
+    #This "NRW:" label is underlined (inside <u> tag)
+    #secondPTagEmpty = True only in 976 33. and 962 9. , there exists a second p-tag, but is is empty. Therefore, parsing like there is only one p-tag
+    #twoSenatsTextBlocks = True only for 960 55. because there is one p-tag, but two "NRW:" labels.
+    def _extractSenatBRTextsDefault(self, currentTOPRow, secondPTagEmpty = False, twoSenatsTextBlocks = False):
+        senats_and_br_text = currentTOPRow.xpath('./td[2]/p') #Text
+
+        if len(senats_and_br_text) != 1 and (not secondPTagEmpty) : #More than one text block in second row cell, have to do something different (except for 960 55. secondPTagEmpty == True)
+            raise Exception()
+
+        maybeNRWTag = senats_and_br_text[0].xpath('./u[text()="NRW:"]') #There is a senats_text iff underlined tag with "NRW:" is in row
+        if len(maybeNRWTag) == 0: #No "NRW:" label in text -> Everything is BR text
+            br_text = senats_and_br_text[0].text_content() #.text only has problems with text inside (tags inside tags). And "nicht" always underlined and therefore not found
+            senats_text = ""
+        elif len(maybeNRWTag) == 1 or (len(maybeNRWTag) == 2 and twoSenatsTextBlocks ): #Have a "NRW:" Label (or for 960 55. with twoSenatsTextBlocks == True even two such labels)  -> Senats text exists. 
+
+            #Have [1] here because of the case where I have two NRW Labels. Otherwise, I could delete [1], but for two labels it's useful so that br_text doesn't contain first part Senats Text
+            br_text = senats_and_br_text[0].xpath('./u[text()="NRW:"][1]/preceding-sibling::* | ./u[text()="NRW:"][1]/preceding-sibling::text() ') #br_text = Find all tags and free text (not inside any tag) that come before the "NRW:" Tag
+            senats_text = senats_and_br_text[0].xpath('./u[text()="NRW:"][1]/following-sibling::* | ./u[text()="NRW:"][1]/following-sibling::text()')  #senats_text = Find all tags and free text (not inside any tag) that come after the "NRW:" Tag
+
+            br_text = list(map(lambda x : x.text if type(x) == etree.HtmlElement else x, br_text)) #Extract text for all tags and keep text for all free texts in list
+            senats_text = list(map(lambda x : x.text if type(x) == etree.HtmlElement else x, senats_text)) #Extract text for all tags and keep text for all free texts in list
+
+            br_text = [x for x in br_text if x is not None ] #None would create problem with join() later
+            senats_text = [x for x in senats_text if x is not None ] #None would create problem with join() later
+
+            #Concat all texts
+            br_text = "".join(br_text)
+            senats_text = "".join(senats_text)
+
+        else: #More than one "NRW:" Label in row, have to adjust something
+            raise Exception()
+
+        return senats_text, br_text
+
+    #Like _extractSenatBRTextsDefault(),
+    #but "NRW:" not underlined and not in extra tag anymore -> Have to search in free texts (text())
+    #Happens for 962 and 961 (but not for 960 or 963)
+    #See senats_text comment for why no merge with _extractSenatBRTextsDefault() + Parameter
+    def _extractSenatBRTextsNRWNotUnderlined(self, currentTOPRow):
+        senats_and_br_text = currentTOPRow.xpath('./td[2]/p') #Text
+
+        if len(senats_and_br_text) != 1: #More than one text block in second row cell, have to do something different
+            raise Exception()
+
+        maybeNRWTag = senats_and_br_text[0].xpath('text()[contains(., "NRW:")]') #Nothing in tags, all free 
+        if len(maybeNRWTag) != 1: #If no senats text, then proceed as in Default Case
+            return self._extractSenatBRTextsDefault(currentTOPRow)
+        # NRW: Label present -> Senats Text there
+        # Analog separate text in _extractSenatBRTextsDefault()
+        # Have to use contains instead of starts-with because of strange tabs before "NRW:"
+        br_text = senats_and_br_text[0].xpath('text()[contains(., "NRW:")]/preceding-sibling::* | text()[contains(., "NRW:")]/preceding-sibling::text() ')
+        senats_text = senats_and_br_text[0].xpath('text()[contains(., "NRW:")]  | text()[contains(., "NRW:")]/following-sibling::* | text()[contains(., "NRW:")]/following-sibling::text()') #Also have line with NRW: inside senats text because this text() also contains information. This is the reason I don't merge it with _extractSenatBRTextsDefault()
+
+        #See _extractSenatBRTextsDefault() for explanation
+        br_text = list(map(lambda x : x.text if type(x) == etree.HtmlElement else x, br_text))
+        senats_text = list(map(lambda x : x.text if type(x) == etree.HtmlElement else x, senats_text))
+
+        br_text = [x for x in br_text if x is not None ] #None would create problem with join() later
+        senats_text = [x for x in senats_text if x is not None ] #None would create problem with join() later
+
+        #Concat all texts
+        br_text = "".join(br_text)
+        senats_text = "".join(senats_text)
+
+        return senats_text, br_text
+
+    #BR Text and Senats Text in two separate p-tags
+    #Just return content of these tags as texts
+    def _extractSenatBRTextsTwoPTags(self, currentTOPRow):
+        senats_and_br_text = currentTOPRow.xpath('./td[2]/p')
+        br_text = senats_and_br_text[0].text_content() #underlined "nicht" doesn't works with .text
+        senats_text = senats_and_br_text[1].text_content()
+        return senats_text, br_text
+
+    #br text is part of a list because of subpart as list tag attribute (see _getTOPTableRowSubpartAsListValue() for explaination) -> slightly different xpath to br_text, but senats_text stays same
+    #BR Text and Senats Text in two separate tags, so
+    #Just return content of these tags as texts
+    def _extractSenatBRTextsSubpartAsListValue(self, currentTOPRow):
+        br_text = currentTOPRow.xpath('./td[2]/ol/li/p[1]')[0].text_content() #Jump inside this list to find br_text
+
+        #Senats Exists Check by checking if some tag exists, not by "NRW:" label. Tags more consistent
+        maybe_senats_text =  currentTOPRow.xpath('./td[2]/p')
+        if len(maybe_senats_text) == 1: #Tag exists -> Senat Text is content
+            senats_text = maybe_senats_text[0].text_content()
+        else: #No Senats Text for that TOP
+            senats_text = ""
+
+        return senats_text, br_text
