@@ -23,7 +23,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
-        response = requests.get(INDEX_URL)
+        response = requests.get(INDEX_URL, headers={'User-Agent': '-'}) #Without User-Agent don't receive any information
         root = etree.fromstring(response.content)
 
         names = root.xpath('//a')# Again, more clever xpaths just don't get recognized
