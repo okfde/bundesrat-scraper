@@ -1,5 +1,7 @@
 import pdfcutter
 import helper
+import json #For writing PDF Link JSON File
+import os #To check if PDF Link JSON File exists
 
 #get_session is main method for parsing session to Senats/Bundesrats Texts dict
 class MainExtractorMethod:
@@ -12,6 +14,13 @@ class MainExtractorMethod:
     #Out: Dict of "TOP: {'senat': senatsText, 'bundesrat': BRText}" entries
     def get_session(self, session):
         PDF_URLS = dict(self._get_pdf_urls())
+
+        URLFILENAME = "session_urls.json"
+        if not os.path.exists(URLFILENAME): #Create PDF Link JSON File
+            with open(URLFILENAME, 'w') as f: #Because of override of MainExtractorMethod in counties, the FILENAME is always relative to folder
+                json.dump(PDF_URLS, f)
+
+
         try:
             filename = helper.get_session_pdf_filename(session, PDF_URLS)
         except KeyError:

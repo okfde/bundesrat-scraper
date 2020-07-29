@@ -1,3 +1,4 @@
+import json
 import re
 
 import requests
@@ -173,6 +174,13 @@ def get_beschluesse_text(session, filename):
 
 def get_session(session):
     PDF_URLS = dict(get_pdf_urls())
+
+    #TODO Remove by merge with MainExtractorMethod
+    URLFILENAME = "session_urls.json"
+    if not os.path.exists(URLFILENAME): #Create PDF Link JSON File
+        with open(URLFILENAME, 'w') as f: #Because of override of MainExtractorMethod in counties, the FILENAME is always relative to folder
+            json.dump(PDF_URLS, f)
+
     try:
         filename = helper.get_session_pdf_filename(session, PDF_URLS)
     except KeyError:
