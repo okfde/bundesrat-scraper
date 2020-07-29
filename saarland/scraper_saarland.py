@@ -15,29 +15,44 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://www.saarland.de/SID-C1973F70-4C2D724F/244360.htm'
-BASE_URL = 'https://www.saarland.de'
-NUM_RE = re.compile(r'(\d+)\.[ ]?Sitzung') #Space is sometimes missing between number and "Sitzung"
+INDEX_URL = 'https://www.saarland.de/lvsaarland/DE/bundesrat/br-beschluesse/br-beschluesse_node.html?gtp=%252687c6339c-fd8a-4a70-9bff-954224c0fe05_list%253D{searchnumber}'
+BASE_URL = 'https://www.saarland.de/'
+NUM_RE = re.compile(r'(\d+)[.]?[ ]?Sitzung') #Space is sometimes missing between number and "Sitzung"
 BR_TEXT_RE = re.compile(r'^Ergebnis BR:')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
+
+
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
-        response = requests.get(INDEX_URL)
-        root = etree.fromstring(response.content)
+        searchpage=1
+        while True:
+            #Go through search pages 1,..., until search is empty
+            searchresponse = requests.get(INDEX_URL.format(searchnumber=searchpage))
+            searchroot = etree.fromstring(searchresponse.content)
+            fields = searchroot.xpath('//a[@class="Publication"]')
+            if len(fields) == 0: #Have seen all search results
+                break
 
-        fieldsNew = root.xpath('//*[@class="download"]/h4/a')#-974
-        fieldsOld = root.xpath('//*[@class="download"]/a')#973-936
-        fields = fieldsNew + fieldsOld
-        for field in fields:
-            text = field.text_content()
-            num = int(NUM_RE.search(text).group(1))
-            partLink = field.attrib['href'] #Only /dokumente/... in href
-            if "pdf" not in partLink: #955 false link -> Breaks Parser
-                continue
-            link = BASE_URL + partLink
-            yield int(num), link
+            for field in fields:
+                text = field.text_content()
+                if text == "": # 952 not there, but still link -> would break num regex
+                    continue
+                num = int(NUM_RE.search(text).group(1))
+
+                partLinkRedirect = field.attrib['href'] #Only /dokumente/... in href
+                linkRedirect = BASE_URL + partLinkRedirect
+                if "960.Sitzung" in linkRedirect: #Forgot PDF Link for session 960 -> would break xpath for PDF Link
+                    continue
+                redirectresponse = requests.get(linkRedirect) #Need to go to another page where PDF Link is located
+                redirectroot = etree.fromstring(redirectresponse.content)
+
+                partPDFlink = redirectroot.xpath('//a[@class="downloadLink"]')[0].attrib['href'] #Link to PDF
+                pdfLink = BASE_URL + partPDFlink
+
+                yield int(num), pdfLink
+            searchpage+=1
 
 class TOPPositionFinder(PDFTextExtractor.DefaultTOPPositionFinder):
 
