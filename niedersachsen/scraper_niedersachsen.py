@@ -249,6 +249,8 @@ class NSTextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             return TOPPositionFinder974ForgotNumberPoint(self.cutter)
         elif self.sessionNumber == 985 and top == "18. b)":
             return TOPPositionFinder985TOP18b(self.cutter)
+        elif self.sessionNumber == 992:
+            return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter, TOPRight = 140) #"3. Juli" in Header disrupts TOP 3. Finder
 
         return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
 
