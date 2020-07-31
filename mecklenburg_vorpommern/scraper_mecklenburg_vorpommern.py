@@ -69,6 +69,16 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         if 972 <= self.sessionNumber <= 984: #Different Table Sizes
             senatLeft = 505
             brLeft = 825
+        #senats and br text are so close together, that pdftohtml puts them in same chunk
+        #Therefore, change borders so both senats and br text are put into senats text (never use br text anyway)
+        if self.sessionNumber == 977 and top == "10.": 
+            return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(cutter,
+                    page_heading = 70,
+                    page_footer = 1262,
+                    senatLeft = senatLeft,
+                    brLeft = 1500, #Really huge, so senats + br text inside senat, and br empty
+             )
+
 
         return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(cutter,
                 # Taken from pdftohtml -xml output
