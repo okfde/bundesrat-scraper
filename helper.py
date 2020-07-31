@@ -14,7 +14,7 @@ def get_filename_url(url):
     filename = os.path.join('./_cache', filename)
     if os.path.exists(filename):
         return filename
-    response = requests.get(url)
+    response = requests.get(url, headers={'User-Agent': '-'}) #Need this for MV (else after ~5 PDFs cant download anymore) and don't want to restructure everything to add User-Agent, so just try to add it always and see if it breaks somewhere
     if response.status_code != 200:
         raise Exception('{} not found'.format(url))
     with open(filename, 'wb') as f:
