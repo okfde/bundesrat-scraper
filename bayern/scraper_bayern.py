@@ -26,8 +26,8 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         response = requests.get(INDEX_URL)
         root = etree.fromstring(response.content)
         names = root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div/ul/li/a')
-        names += root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div[1]/ul/li[4]/span/a') #986 has extra span, there need to add it manually
-        names += root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div[7]/p[2]/a') #2014 needs special treatment
+        names += root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div[1]/ul/li/span/a') #986 has extra span, there need to add it manually, last li without index because it changes when new session is added
+        names += root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div/p[2]/a') #2014 needs special treatment, no index last div because it changes when new year is added
         for name in names:
             link = name.attrib['href']
             num = int(NUM_RE.search(link).group(1))
@@ -46,6 +46,10 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         formatTOPsWithSubpart="{number}{subpart})." #e.g. BA 985 9. a) is "9a)."
         if self.sessionNumber == 940 and top == "6. b)":
             formatTOPsWithSubpart="{number}{subpart})" #e.g. 6b) in BA 940
+        elif self.sessionNumber in [982, 983]:
+            formatTOPsWithSubpart="{number}{subpart})" #e.g. 2a) in BA 982
+        elif self.sessionNumber in [984]:
+            formatTOPsWithSubpart="{number}{subpart}." #e.g. 45a. in BA 984
         return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart)
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
