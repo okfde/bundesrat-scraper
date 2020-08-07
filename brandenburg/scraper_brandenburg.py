@@ -63,7 +63,11 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             senatsBR_text = senatsBR_text.above(selectionNextTOP)
 
         br_text_title = senatsBR_text.filter(auto_regex='^Ergebnis Bundesrat:')
-        senats_text = senatsBR_text.above(br_text_title).clean_text()
+        if br_text_title: #Cut BR away, but above() always empty if no BR title exists
+            senats_text = senatsBR_text.above(br_text_title).clean_text()
+        else:
+            senats_text = senatsBR_text.clean_text()
+
         #For some reason the BR Text is always empty when I do:
         #BR_text = senatsBR_text.below(BR_text_title).clean_text()
         br_text = senatsBR_text.filter(
@@ -73,7 +77,22 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         return senats_text, br_text
 
 #Senats/BR Texts and TOPS in BW  all have same formatting
-class NSTextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
+class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
+    def _getRightTOPPositionFinder(self, top):
+        if self.sessionNumber >= 986:
+            formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 992 23. a) is "23a"
+        elif self.sessionNumber == 985:
+            formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 985 9. a) is "9 a"
+        elif 974 <= self.sessionNumber <= 984:
+            formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 984 45. a) is "45a"
+        elif 970 <= self.sessionNumber <= 973:
+            formatTOPsWithSubpart="{number}{subpart}." #e.g. BB 973 25. a) is "25a."
+        elif 968 <= self.sessionNumber <= 969:
+            formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 969 21. a) is "21 a"
+        elif self.sessionNumber <= 967:
+            formatTOPsWithSubpart="{number}{subpart}." #e.g. BB 967 3. a) is "3a."
+
+        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart, TOPRight=200) #945 13. in date would cause problems without TOPRight
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In BW all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
