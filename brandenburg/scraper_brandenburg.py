@@ -63,7 +63,11 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             senatsBR_text = senatsBR_text.above(selectionNextTOP)
 
         br_text_title = senatsBR_text.filter(auto_regex='^Ergebnis Bundesrat:')
-        senats_text = senatsBR_text.above(br_text_title).clean_text()
+        if br_text_title: #Cut BR away, but above() always empty if no BR title exists
+            senats_text = senatsBR_text.above(br_text_title).clean_text()
+        else:
+            senats_text = senatsBR_text.clean_text()
+
         #For some reason the BR Text is always empty when I do:
         #BR_text = senatsBR_text.below(BR_text_title).clean_text()
         br_text = senatsBR_text.filter(
