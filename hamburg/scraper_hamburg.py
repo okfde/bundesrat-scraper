@@ -99,7 +99,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         formatTOPsOnlyNumber="TOP {number}[ :]*$" #e.g. HA 985 4 is "TOP 4". Use $ to not match "TOP 1" with "TOP 11", but allow spaces and colons. TODO This $,[] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but $,[],* doesn't and I abuse this.
         #TODO Are there even TOPs in HA with ":" after TOP Number/Subpart? Think so, but couldn't find them anymore
         formatTOPsWithSubpart="{number}{subpart}" #e.g. HA 985 9. a) is "TOP 9a" (Has to start with TOP because I check for prefix) TODO This [] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but [],* doesn't and I abuse this.
-        return CustomTOPFormatPositionFinderNoPrefix(self.cutter, formatTOPsOnlyNumber, formatTOPsWithSubpart)
+        return CustomTOPFormatPositionFinderNoPrefix(self.cutter, formatNumberOnlyTOP= formatTOPsOnlyNumber, formatSubpartTOP= formatTOPsWithSubpart)
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In HA all Text Rules are consistent
