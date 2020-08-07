@@ -19,7 +19,7 @@ INDEX_URL = 'https://lv.sachsen-anhalt.de/bundesrat/aktuell/'
 NUM_RE = re.compile(r'Ergebnisse .* (\d+)\.[ ]?Sitzung des Bundesrates.*')# SA also has "Erläuterungen", don't want those
 BR_TEXT_RE = re.compile(r'^[ ]?Ergebnis BR:(.*)')
 SENAT_TEXT_RE = re.compile(r'^[ ]?Abstimmung ST:(.*)')
-BRSENAT_TEXT_RE = re.compile(r'^[ ]?Ergebnis BR / Abstimmung ST:(.*)')#Space at front is ok+
+BRSENAT_TEXT_RE = re.compile(r'^( Hinweis: Die nächste Sitzung des BR wurde für den 03.07.2020, 09.30 Uhr, einberufen.|)[ ]?Ergebnis BR[ ]?/ Abstimmung ST:(.*)')#Space at front is ok+ , mid space missing for SA 991 1a, long prefix only needed for SA 991 1c strange order selected lines
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -46,6 +46,7 @@ class TOPPositionFinder(PDFTextExtractor.DefaultTOPPositionFinder):
         topSelection = topSelection.filter(
                 left__lte = 160 # Dont match e.g. "980 Sitzung" in title for TOP 9 (happens in 989 TOP 9)
                 )
+        #dVis.showCutter(topSelection)
         return topSelection
 
     def _getNumberSelection(self, number):
@@ -65,24 +66,26 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         page_footer = 1260 #Upper of footer on each page
 
 
-        ergebnis_br = self.cutter.filter(auto_regex='^Ergebnis BR').below(selectionCurrentTOP).above(selectionNextTOP)
+        ergebnis_br = self.cutter.filter(auto_regex='^[ ]?Ergebnis BR').below(selectionCurrentTOP)
+        if selectionNextTOP: #Otherwise allways empty if no nextTOP
+            ergebnis_br = ergebnis_br.above(selectionNextTOP)
 
         br_text = self.cutter.all().filter(
-            doc_top__gte=ergebnis_br.doc_top - 1 ,#Relative to all pages
+            doc_top__gte=ergebnis_br.doc_top - 10 ,#Relative to all pages
             top__gte=page_heading, #Remove Page header if in current selecion
             bottom__lt=page_footer,
         )
+        #dVis.showCutter(br_text)
 
         if selectionNextTOP:
             br_text = br_text.above(selectionNextTOP)
 
         if "Abstimmung ST" in ergebnis_br.clean_text(): #"Ergebnis BR / Abstimmung ST:" Combo Block -> Senat + BR Text are same
 
-            br_text = br_text.clean_text()
-            weg = br_text
+            br_text  = br_text.clean_text()
             maybe_br_text = BRSENAT_TEXT_RE.search(br_text)
             if maybe_br_text:
-                br_text = maybe_br_text.group(1)
+                br_text = maybe_br_text.group(2)
             else:
                 br_text = ""
             senats_text = br_text
