@@ -43,7 +43,9 @@ class DefaultTOPPositionFinder:
                 left__lte = self.TOPRight, #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
                 top__gte=self.page_heading,
         )
-        return self._getHighestSelection(allSelectionsNumber)
+        highestSelection = self._getHighestSelection(allSelectionsNumber)
+        #dVis.showCutter(highestSelection)
+        return highestSelection
 
     #pdfcutter sorts selections by height on page, not by absolute (doc_top) height. We do this here
     def _getHighestSelection(self, selections): 
