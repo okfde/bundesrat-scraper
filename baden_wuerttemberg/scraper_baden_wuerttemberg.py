@@ -62,7 +62,9 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         return senats_text, br_text
 
 #Senats/BR Texts and TOPS in BW  all have same formatting
-class NSTextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
+class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
+    def _getRightTOPPositionFinder(self, top):
+        return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter, TOPRight=144)# Need this only for BW 985 18a/18b, because "(LFGB)" catches b) + cant have TOPRight too far left, because subparts are part of text "column"
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In BW all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
