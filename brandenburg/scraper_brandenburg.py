@@ -42,11 +42,12 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
         page_heading = 73 #Bottom of heading on each page
-        page_footer = 1260 #Upper of footer on each page
+        page_footer = 1160 #Upper of footer on each page
 
         #Get indented Text, Senats/BR text is everything below it, need to check below this because otherwise I also filter Name of TOP
         TOPRightIndented = self.cutter.all().below(selectionCurrentTOP).filter(
-            left__gte = selectionCurrentTOP.left + 100 
+            left__gte = selectionCurrentTOP.left + 100,
+            top__lt = page_footer# Match otherwise page number for e.g. 984 26
         )
 
         if selectionNextTOP:
@@ -55,10 +56,13 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         last_indented_with_text = None
         #empty, but present lines below senat text can mess up parsing, so only watch for last non-empty
         for line in TOPRightIndented:
-            if line.clean_text(): #empty strings are falsy
+            if line.clean_text().strip(): #empty strings are falsy
                 last_indented_with_text = line
 
+
+        #dVis.showCutter(last_indented_with_text)
         senatsBR_text = self.cutter.all().below(last_indented_with_text)
+        #dVis.showCutter(senatsBR_text)
         if selectionNextTOP:
             senatsBR_text = senatsBR_text.above(selectionNextTOP)
 
@@ -72,6 +76,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         #BR_text = senatsBR_text.below(BR_text_title).clean_text()
         br_text = senatsBR_text.filter(
             doc_top__gte=br_text_title.doc_top +1 ,
+            top__lt = page_footer# Match otherwise page number for e.g. 984 26
         ).clean_text()
 
         return senats_text, br_text
@@ -79,12 +84,16 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 #Senats/BR Texts and TOPS in BW  all have same formatting
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     def _getRightTOPPositionFinder(self, top):
+        TOPRight=200
         if self.sessionNumber >= 986:
             formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 992 23. a) is "23a"
         elif self.sessionNumber == 985:
             formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 985 9. a) is "9 a"
         elif 974 <= self.sessionNumber <= 984:
             formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 984 45. a) is "45a"
+            if self.sessionNumber == 984:
+                TOPRight = 145 # Else match 26. with "26. März..." of TOP 15
+
         elif 970 <= self.sessionNumber <= 973:
             formatTOPsWithSubpart="{number}{subpart}." #e.g. BB 973 25. a) is "25a."
         elif 968 <= self.sessionNumber <= 969:
@@ -92,7 +101,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         elif self.sessionNumber <= 967:
             formatTOPsWithSubpart="{number}{subpart}." #e.g. BB 967 3. a) is "3a."
 
-        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart, TOPRight=200) #945 13. in date would cause problems without TOPRight
+        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart, TOPRight=TOPRight) #945 13. in date would cause problems without TOPRight
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In BW all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
