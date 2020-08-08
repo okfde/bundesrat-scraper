@@ -120,6 +120,8 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                 formatTOPsWithSubpart="{number}{subpart}" #e.g. HE 965 14. b) is "14b"
         elif 985 <= self.sessionNumber <= 988 :
             formatTOPsWithSubpart="{number} {subpart})" #e.g. HE 986 32. b) is "32 b)"
+        elif (self.sessionNumber == 972):
+            return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, TOPRight=100, formatSubpartTOP=formatTOPsWithSubpart) #Else match 18. with "18. Oktober..." of TOP 13a
         elif (self.sessionNumber == 992) and (top in ["30.", "31.", "55."]):# They forgot point after number there but e.g. 31 is ubiquious ("Drucksache 331/20" in TOP 2.)
             formatNumberOnlyTOP="{number}"
             rightBorderTOP = 237 # Taken from pdftohtml -xml output
@@ -151,7 +153,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                 page_footer = 825,
                 senatLeft = 409,
                 brLeft = 800,
-            )
+           )
 
         return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(cutter,
                 # Taken from pdftohtml -xml output
