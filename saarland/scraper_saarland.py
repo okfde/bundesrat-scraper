@@ -54,17 +54,12 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
                 yield int(num), pdfLink
             searchpage+=1
 
-class TOPPositionFinder(PDFTextExtractor.DefaultTOPPositionFinder):
-
-    #SL formats .e.g. 973 25 a) as 25a. So use different format and only search for this 25a. alone (without number search before)
-    def _getTOPSubpartSelection(self, top):
-        number, subpart = top.split() #46. b) -> [46., b)]
-        TOPRightFormat = number[:-1] + subpart.replace(")", ".") # 46. b) -> 46b.
-        topSelection = self._getNumberSelection(TOPRightFormat) #Although not only a number, this still works
-        return topSelection
-
 #Senats/BR Texts and TOPS in BW  all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
+
+    def __init__(self, cutter, senatsTextPrefix="Haltung SL:"):
+        self.senatsTextPrefix = senatsTextPrefix
+        super().__init__(cutter)
 
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
         page_heading = 73 #Bottom of heading on each page
@@ -73,7 +68,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         #Get indented Text, Senats/BR text is everything below it, need to check below this because otherwise I also filter Name of TOP
 
         #Because selectionNextTOP is never empty (but could be empty selector), I can use it without checking if it is None or empty
-        senatTitleSelection = self.cutter.all().filter(auto_regex="^Haltung SL:").below(selectionCurrentTOP)
+        senatTitleSelection = self.cutter.all().filter(auto_regex="^{}".format(self.senatsTextPrefix)).below(selectionCurrentTOP)
         BRTitleSelection = self.cutter.all().filter(auto_regex="^Ergebnis BR:").below(selectionCurrentTOP)
         if selectionNextTOP: #Otherwise Always empty text if no next TOP
             senatTitleSelection = senatTitleSelection.above(selectionNextTOP)
@@ -102,9 +97,20 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
 
     def _getRightTOPPositionFinder(self, top):
-        return TOPPositionFinder(self.cutter)
+        if self.sessionNumber == 992 and top in ["23. b)", "69. b)", "69. d)"]:
+            return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}{subpart}") #Somehow dot not in same chunk as number and subpart
+        if self.sessionNumber == 992 and "40" in top: #992 40 a,b,c are very weird (all TOPs before the text, would have to take 41 as next TOP, dont have upper bound for text ...), need this for right Text 39 (nextTop is 40a
+            return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
+
+        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}{subpart}.") #25a.
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In BW all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
+        if self.sessionNumber == 992 and "40" in top: #992 40 a,b,c are very weird (all TOPs before the text, would have to take 41 as next TOP, dont have upper bound for text ...), therefore do this statically
+            senatsText = "Stellungnahme gemäß Drs. 295/1/20 (Enthaltung zu Ziffern 13, 31, 32," # For all subparts same
+            brText = "Stellungnahme gemäß Drs. 295/1/20 ohne Ziffern 20, 26, 32 sowie 40 bis 44 (Sammelabstimmung zu Ziffern 1 bis 7, 9, 10, 14 bis 18, 21 bis 24, 28 bis 30, 33 bis 38 und 47 bis 50)"
+            return PDFTextExtractor.StaticTextSenatsAndBRTextExtractor(cutter, senatsText, brText)
+        if self.sessionNumber == 984 and top == "26.":
+            return SenatsAndBRTextExtractor(cutter, senatsTextPrefix="Haltung") #Forgot "SL:" 984 26 , only reason for this parameter
         return SenatsAndBRTextExtractor(cutter)

@@ -123,6 +123,20 @@ class AbstractSenatsAndBRTextExtractor:
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
         raise NotImplementedError()
 
+#If parsing one TOP too hard (e.g.SAAR 992 40), then return Hand copied text
+class StaticTextSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
+
+    #Take static text as argument
+    def __init__(self, cutter, senatsText, brText):
+        self.senatsText = senatsText
+        self.brText = brText
+        super().__init__(cutter)
+
+    #Always return tuple with same, static texts
+    def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
+        return self.senatsText, self.brText
+
+
 #Default Text Extractor for Tables where senat/br texts *right* to TOP (not below). Just give it the pixels where the Tables split and you are good to go
 class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
 
