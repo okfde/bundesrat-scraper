@@ -89,6 +89,8 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 992 23. a) is "23a"
         elif self.sessionNumber == 985:
             formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 985 9. a) is "9 a"
+        elif self.sessionNumber == 980 and top in ["2. a)", "2. b)", "25. a)", "25. b)"]: #980 80a is like the next case below again
+            formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 980 "2. a)" is "2 a"
         elif 974 <= self.sessionNumber <= 984:
             formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 984 45. a) is "45a"
             if self.sessionNumber == 984:
