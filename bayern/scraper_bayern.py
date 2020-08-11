@@ -48,8 +48,10 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             formatTOPsWithSubpart="{number}{subpart})" #e.g. 6b) in BA 940
         elif self.sessionNumber in [982, 983]:
             formatTOPsWithSubpart="{number}{subpart})" #e.g. 2a) in BA 982
-        elif self.sessionNumber in [984]:
+        elif self.sessionNumber == 984:
             formatTOPsWithSubpart="{number}{subpart}." #e.g. 45a. in BA 984
+        elif self.sessionNumber == 992 and top == "70. b)" :
+            formatTOPsWithSubpart="{number}.{subpart})." #e.g. 70.b). in BA 992
         return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart)
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
