@@ -116,10 +116,16 @@ def get_beschluesse_text_type2(session, filename, top_length):
 
     #e.g. 1, (001, 002)
     for top_num, (current, next_) in zip(top_nums, helper.with_next(reformatted_top_nums)):
+        # BRE 992 87a and 87b dont have space between number and subpart in PDF
+        if session_number == 992 and current in ["087 a", "087 b"]:
+            current = current.replace(" ", "")
         current_top = cutter.filter(auto_regex='^{}$'.format(current))
 
         next_top = None
         if next_ is not None:
+            # BRE 992 87a and 87b dont have space between number and subpart in PDF
+            if session_number == 992 and next_ in ["087 a", "087 b"]:
+                next_ = next_.replace(" ", "")
             next_top = cutter.filter(auto_regex='^{}$'.format(next_))
         senats_text, br_text = getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top)
         yield top_num, {'senat': senats_text, 'bundesrat': br_text}
