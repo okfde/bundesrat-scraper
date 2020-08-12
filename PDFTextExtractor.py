@@ -78,17 +78,19 @@ class DefaultTOPPositionFinder:
 class CustomTOPFormatPositionFinder(DefaultTOPPositionFinder):
 
     #Default Formats like shown in Glossary
-    def __init__(self, cutter, TOPRight = None, page_heading=0, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})"):
+    def __init__(self, cutter, TOPRight = None, page_heading=0, formatNumberOnlyTOP="{number}.", formatSubpartTOP="{number}. {subpart})", padTOPNumberToLength=0): #padTOPNumberToLength only needed for BRE 938- , 0 means no padding
 
         self.formatNumberOnlyTOP = formatNumberOnlyTOP
         self.formatSubpartTOP = formatSubpartTOP
+        self.padTOPNumberToLength = padTOPNumberToLength
         super().__init__(cutter, TOPRight, page_heading)
 
     #Look for number with given formatNumberOnlyTOP String at *beginning* of selections
     #Used e.g. HA 985 "TOP 4"
     def _getNumberSelection(self, number):
         onlyNumber = number[:-1] #46. -> 46
-        topRightFormat = self.formatNumberOnlyTOP.format(number=onlyNumber)
+        paddedNumber = onlyNumber.zfill(self.padTOPNumberToLength) #Left pad with 0s, only needed for BRE 938-
+        topRightFormat = self.formatNumberOnlyTOP.format(number=paddedNumber)
         return super()._getNumberSelection(topRightFormat)
 
 
@@ -99,7 +101,8 @@ class CustomTOPFormatPositionFinder(DefaultTOPPositionFinder):
         number, subpart = top.split() #46. b) -> [46., b)]
         onlyNumber = number[:-1] #46. -> 46
         onlySubpart = subpart[:-1] #b) -> b
-        topRightFormat = self.formatSubpartTOP.format(number = onlyNumber, subpart = onlySubpart)
+        paddedNumber = onlyNumber.zfill(self.padTOPNumberToLength) #Left pad with 0s, only needed for BRE 938-
+        topRightFormat = self.formatSubpartTOP.format(number = paddedNumber, subpart = onlySubpart)
         topSelection = self._getPrefixStringSelection(topRightFormat)
         #dVis.showCutter(topSelection)
         return topSelection
