@@ -1,5 +1,6 @@
 import re
 import pdb
+from lxml import html as etree
 
 import requests
 from lxml import html as etree
@@ -58,6 +59,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             doc_top__gt  = selectionCurrentTOP.doc_top,
             left__gte = selectionCurrentTOP.left - 10,
             right__lte = selectionCurrentTOP.right + 30, #Offset for subpart
+            top__gte=page_heading, #Ignore Page Footer
+            bottom__lt=page_footer, #Else, 983 21a matches "Ergebnisse.doc" Footer and not TOP 21b
         )
         selectionDirectNextTOP = self._getHighestSelectionNotEmpty(selectionsNextPDFTOPs)# Could be empty, but will be handeled
 
@@ -72,7 +75,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         if selectionDirectNextTOP: #Next TOP as lower bound
             TOPRightIndented = TOPRightIndented.above(selectionDirectNextTOP)
 
-        senats_text = TOPRightIndented.clean_text()
+        senats_text = helper.cleanTextOrderedByDocTop(TOPRightIndented)  #Else, pdfcutter orders by top, not by doc_top, making multi-site selection strangely sorted
         br_text = senats_text #Whole Text where senat and br and both mentioned, so just copy it
         return senats_text, br_text
 
