@@ -2,6 +2,8 @@ import itertools
 from urllib.parse import urlsplit
 import os
 import requests
+from pdfcutter import utils
+from lxml import html as etree
 
 #Escape . and ) in TOPs for regex
 #Cant use re.escape because it escapes spaces too, which is bad for later split
@@ -50,3 +52,48 @@ def with_next(iterable):
     a, b = itertools.tee(iterable)
     next(b, None)
     return itertools.zip_longest(a, b)
+
+#pdfcutter.utils.obj_to_coord
+#Compare doc_top instead of top
+#Only use Selection, easier to directly call doc_top than to compute it myself
+#Don't have doc_top as attribute, therefore add page height page_number of times
+def _obj_to_coord_doc_top(x):
+    top = int(x.attrib['top'])
+    page_number = int(x.getparent().attrib['number'])
+    page_height = int(x.getparent().attrib['height'])
+    doc_top = top + page_number*page_height
+
+    return (doc_top, int(x.attrib['left']))
+
+#pdfcutter.utils.fuzzy_compare
+#Compare doc_top instead of top
+@utils.cmp_to_key
+def _fuzzy_compare_doctop(a, b):
+    a = _obj_to_coord_doc_top(a)
+    b = _obj_to_coord_doc_top(b)
+    if utils.similar(a[0], b[0], 4):
+        if utils.similar(a[1], b[1], 4):
+            return 0
+        return 1 if a[1] > b[1] else -1
+    return 1 if a[0] > b[0] else -1
+
+# pdfcutter orders text by top, not doc_top. This leads to ordering problems for multi-page selections
+def cleanTextOrderedByDocTop(selection, join_words = True, fix_hyphens=True):
+    #Exactly https://github.com/stefanw/pdfcutter/blob/master/pdfcutter/pdfcutter.py , but sort by doctop before
+
+    #Selection.text_list
+    texts = [etree.tostring(
+            t, method="text", encoding='utf-8').decode('utf-8')
+            for t in sorted(selection.selected,key=_fuzzy_compare_doctop) #Sort by doc_top, not top
+    ]
+    if join_words:
+        texts = [t.strip().replace('- ', '-') for t in texts]
+
+    #Selection.text()
+    text = ' '.join(texts)
+
+    #Selection.clean_text()
+    text = utils.remove_multispace(text)
+    if fix_hyphens:
+        text = utils.remove_hyphenation(text)
+    return text
