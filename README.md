@@ -12,7 +12,7 @@ The plan:
 
 ## Setup 
 
-Everything is tested unter Python 3.6.8, so please install anacando to use this version of python. It is optimized for Arch Linux, but should work with other Linux Distros as well. The `pdftohtml` dependency is required for the `pdfcutter` tool to work
+Everything is tested unter Python 3.6.8, so please install anacando to use this version of python. It is optimized for Arch Linux, but should work with other Linux Distros as well. The `pdftohtml` dependency is required for the `pdfcutter` tool to work.
 
 ```
   pip install --user jupyter
@@ -24,19 +24,23 @@ Everything is tested unter Python 3.6.8, so please install anacando to use this 
   conda activate py368
   sudo conda install -y lxml
   pip install --user pdfcutter requests lxml
+  pip install --user wand #Only needed for the graphical debugger of pdfcutter
   sudo ipython3 kernel install #Otherwise Jupyter can't find kernel
 ```
 
 ## Usage
 
-To scrape the sessions and their agends items, open the bundesrat-scraper with:
+To scrape the sessions and their agends items, connect to the internet and open the bundesrat-scraper with:
 
 ```
   source /opt/anaconda/bin/activate py368
   jupyter notebook bundesrat-scraper/bundesrat/bundesrat_scraper.ipynb
 ```
 
-, and start the code. You want to do this if there was a new bundesrat session you want to scrape. Before this, you might have to delete the `session.json` file and the `_cache` folder.
+, and start the code. If you have any problems with `import pdfcutter` inside jupyter, then delete the kernel folder of jupyter (Kernel path taken from `jupyter notebook scraper.ipynb`) and re-open jupyter nochmal öffnen.
+
+
+ You want to do this if there was a new bundesrat session you want to scrape. Before this, you might have to delete the `session.json` file and the `_cache` folder.
 
 To scrape the Abstimmungsverhalten of a state, do:
 
