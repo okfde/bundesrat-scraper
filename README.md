@@ -7,7 +7,7 @@ The scraper and website, including the data, scraper and website code, are unoff
 The plan:
 
 - `bundesrat` contains a scraper that gets the sessions and their agenda items (TOPs) and puts them in a file called `sessions.json`.
-- The actual voting behaviour of the states is [located on the respective states website](https://www.bundesrat.de/DE/plenum/abstimmung/abstimmung-node.html). The scrapers put the texts into a `$STATE/sessions_tops.json` file, together with the links to the original documents in `$STATE/sessions_urls.json`
+- The actual voting behaviour of the states is [located on the respective states website](https://www.bundesrat.de/DE/plenum/abstimmung/abstimmung-node.html). The scrapers put the texts into a `$STATE/sessions_tops.json` file, together with the links to the original documents in `$STATE/sessions_urls.json`.
 - Each state has its own Scraper in the according folder in form of a Jupyter file.
 
 ## Setup 
@@ -49,17 +49,17 @@ To scrape the Abstimmungsverhalten of a state, do:
   jupyter notebook bundesrat-scraper/$STATE/scraper.ipynb
 ```
 
-, and start the code. If the bundesrat `session.json` was extended, the Scraper will look for the Abstimmungsverhalten of the new sessions
+, and start the code. If the bundesrat `session.json` was extended, the Scraper will look for the Abstimmungsverhalten of the new sessions.
 
 ## Environment
 
 ### Files
 
 - Each state has its own Scraper in the according folder in form of a Jupyter file. The Jupyter file is a wrapper around the actual `scraper_$STATE.py` file. This file extends the `PDFTextExtractor.py` file, which is the code base for the Scrapers. 
-- The `Glossary.md` file explains the used terminology used in the code and comments
+- The `Glossary.md` file explains the used terminology used in the code and comments.
 - The `MainBoilerPlate.py` contains the code base for collecting the links to the documents of the states.
 - The `helper.py` file includes some common methods and adaptations of the `pdfcutter` library.
-- The `selectionVisualizer.py` File contains a method for doing graphical debugging of the `pdfcutter` without the need of using Jupyter, but your browser of choice (e.g. Firefox). See Tips section for more information on that
+- The `selectionVisualizer.py` file contains a method for doing graphical debugging of the `pdfcutter` without the need of using Jupyter, but your browser of choice (e.g. Firefox). See Tips section for more information on that.
 - If you want to know more about the files, look into the comments inside the according file.
 
 ### Scraping
