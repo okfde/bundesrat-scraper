@@ -12,7 +12,7 @@ The plan:
 
 ## Setup 
 
-Everything is tested unter Python 3.6.8, so please install anacando to use this version of python. It is optimized for Arch Linux, but should work with other Linux Distros as well. The `pdftohtml` dependency is required for the `pdfcutter` tool to work.
+Everything is tested unter Python 3.6.8, so please install anaconda to use this version of python. It is optimized for Arch Linux, but should work with other Linux Distros as well. The `pdftohtml` dependency is required for the `pdfcutter` tool to work.
 
 ```
   pip install --user jupyter
@@ -30,14 +30,14 @@ Everything is tested unter Python 3.6.8, so please install anacando to use this 
 
 ## Usage
 
-To scrape the sessions and their agends items, connect to the internet and open the bundesrat-scraper with:
+To scrape the sessions and their agenda items, connect to the internet and open the bundesrat-scraper with:
 
 ```
   source /opt/anaconda/bin/activate py368
   jupyter notebook bundesrat-scraper/bundesrat/bundesrat_scraper.ipynb
 ```
 
-, and start the code. If you have any problems with `import pdfcutter` inside jupyter, then delete the kernel folder of jupyter (Kernel path taken from `jupyter notebook scraper.ipynb`) and re-open jupyter nochmal öffnen.
+, and start the code. If you have any problems with `import pdfcutter` inside Jupyter, then delete the kernel folder of Jupyter (Kernel path taken from `jupyter notebook scraper.ipynb`) and re-open Jupyter.
 
 
  You want to do this if there was a new bundesrat session you want to scrape. Before this, you might have to delete the `session.json` file and the `_cache` folder.
@@ -91,7 +91,7 @@ If you want to execute the scraper without Jupyter, you can do
   get_ipython().run_line_magic('autoreload', '2')
 ```
 
-and execute the python file (after enabling anaconda).
+, and execute the python file (after enabling anaconda).
 
 ### Graphical Debug PDFCutter with Jupyter
 
@@ -135,7 +135,7 @@ If you want to see the PDF links the `MainBoilerPlate` file sends to the `TextEx
 
 ### Debug only one session
 
-If you want to debug a scraping error inside one session (say 973), you can add the following to lines to the scraper jupyter file (cell 8):
+If you want to debug a scraping error inside one session (say 973), you can add the following to lines to the scraper Jupyter file (cell 8):
 
 
 ```
