@@ -127,7 +127,7 @@ pdftohtml $DOCUMENT.pdf -xml
 
 ### Debug Output Collection Document Links
 
-If you want to see the PDF links the `MainBoilerPlate` file sends to the `TextExtractorHolder`, use:
+If you want to see the PDF links the `MainBoilerPlate` file sends to the `TextExtractorHolder` (i.e. what's part of the `session_urls.json` file), use:
 
 ```
   print(list(MainExtractorMethod(None)._get_pdf_urls()))
@@ -145,4 +145,4 @@ If you want to debug a scraping error inside one session (say 973), you can add 
     continue
 ```
 
-Alternatively, you can remove session 973 from the `session_tops.py` file and rerun the Jupyter file.
+Alternatively, you can remove session 973 from the appropriate `session_tops.json` file and rerun the Jupyter file.
