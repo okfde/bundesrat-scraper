@@ -110,6 +110,8 @@ def get_sessions_archive(cache=True):
             if session_num is None:
                 continue
             num = int(session_num.group(1))
+            if num >= 993: #TODO Take out latest session 993 until all Abstimmungsverhalten are onlin
+                continue
             # In archive, date and time are visible only on the detailed page of a meeting
             details = etree.fromstring(get(BASE_URL + path))
             # they used a different website layout for this meeting
