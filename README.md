@@ -49,7 +49,7 @@ To scrape the Abstimmungsverhalten of a state, do:
   jupyter notebook bundesrat-scraper/$STATE/scraper.ipynb
 ```
 
-, and start the code. If the bundesrat `session.json` was extended, the Scraper will look for the Abstimmungsverhalten of the new sessions.
+, and start the code. If the `bundesrat/session.json` file was extended by a session, the Scraper will look for the Abstimmungsverhalten of the new sessions. You might want to disable any VPN because some states won't let you download their documents otherwise.
 
 ## Environment
 
