@@ -1,6 +1,6 @@
 # Bundesrat Voting Scraper
 
-This repo collects the votes in the Bundesrat. For a website that presents the data, check out the [Bundesrat Scraper Website](https://github.com/NWuensche/bundesrat-scraper-website) as well as a live demo [on Heroku](https://bundesrat-scraper-website.herokuapp.com/).
+This repo collects the votes in the Bundesrat. For a website that presents the data, check out the [Bundesrat Scraper Website](https://github.com/NWuensche/bundesrat-scraper-website) as well as a live demo [on Render](https://bundesrat-scraper-website.onrender.com/).
 
 The scraper and website, including the data, scraper and website code, are unofficial. The `Bundesrat` has nothing to do with it. There is no warranty that the scraped data is correct or complete or the website displays the correct information.
 
