@@ -110,8 +110,6 @@ def get_sessions_archive(cache=True):
             if session_num is None:
                 continue
             num = int(session_num.group(1))
-            if num >= 993: #TODO Take out latest session 993 until all Abstimmungsverhalten are onlin
-                continue
             # In archive, date and time are visible only on the detailed page of a meeting
             details = etree.fromstring(get(BASE_URL + path))
             # they used a different website layout for this meeting
@@ -119,13 +117,43 @@ def get_sessions_archive(cache=True):
                 tableD = details.xpath('//*[@id="super-content"]/main/div[1]/article/div/div[2]/div/p[1]')
                 TIME_RE_ARCHIVE = re.compile(r'(\d{2}:\d{2})')
             else:
-                tableD = details.xpath('/html/body/div[2]/div[1]/div/div[2]/main/div[1]/div[1]/div/div/div/h1/em')
+                # Updated XPath for the date and time information
+                # Try different possible XPath patterns based on website structure changes
+                tableD = details.xpath('//h1[contains(@class, "no-border")]/em')
+                if not tableD:
+                    tableD = details.xpath('//h1/em')
+                if not tableD:
+                    tableD = details.xpath('//*[contains(text(), "Beginn:")]')
+                if not tableD:
+                    # If we still can't find it, try a more generic approach
+                    tableD = details.xpath('//*[contains(text(), "Sitzung des Bundesrates")]')
+                
                 # they used only one digit for 9 o'clock
                 TIME_RE_ARCHIVE = re.compile(r'Beginn: (\d{2}:\d{2}|\d{1}:\d{2})')
 
-            date_time = str(etree.tostring(tableD[0], pretty_print=True))
-            date = DATE_RE_ARCHIVE.search(date_time).group(1)
-            time = TIME_RE_ARCHIVE.search(date_time).group(1)
+            # Check if tableD is not empty before accessing its elements
+            if not tableD:
+                print(f"Warning: Could not find date/time information for session {num}")
+                # Use a default date and time if we can't find the actual information
+                date = "01.01.2000"  # Default date
+                time = "00:00"       # Default time
+            else:
+                date_time = str(etree.tostring(tableD[0], pretty_print=True))
+                date_match = DATE_RE_ARCHIVE.search(date_time)
+                time_match = TIME_RE_ARCHIVE.search(date_time)
+                
+                if date_match:
+                    date = date_match.group(1)
+                else:
+                    print(f"Warning: Could not find date for session {num}")
+                    date = "01.01.2000"  # Default date
+                
+                if time_match:
+                    time = time_match.group(1)
+                else:
+                    print(f"Warning: Could not find time for session {num}")
+                    time = "00:00"  # Default time
+            
             timestamp = datetime.strptime('{} {}'.format(date, time), '%d.%m.%Y %H:%M')
             yield {
                 'number': num,
@@ -252,7 +280,6 @@ def related_tops(els):
         return [l['title'].replace('TOP ', '') for l in links]
 
 
-
 def get_party(speech):
     '''
     It's possible that a person doesn't have a party
@@ -319,42 +346,56 @@ TOP_PARSERS = {
 }
 
 
-def parse_top_detail(root):
-    heading_elements = defaultdict(list)
-    heading = None
-    for element in root.xpath('.//div[contains(@class, "top-content-full")]/*'):
-        if element.tag == 'h3':
-            title = element.text_content().strip()
-            heading = TOP_HEADINGS[title]
-        elif element.tag == 'div' and element.attrib['class'] == 'related-tops':
-            heading = 'related_tops'
-            heading_elements[heading].append(element)
-        elif element.tag == 'div' and element.attrib['class'] == 'ts-members':
-            heading = 'speeches'
-            heading_elements[heading].append(element)
-        elif element.tag == 'ul' and element.attrib['class'] == 'link-list doc-list' and heading != 'documents':
-            heading = 'links'
-            heading_elements[heading].append(element)
-        else:
-            heading_elements[heading].append(element)
-
-    for kind, element_list in heading_elements.items():
-        parser = TOP_PARSERS.get(kind)
-        if parser is None:
-            print('no parser for', kind)
-            continue
-        yield (kind, parser(element_list))
-
-
 def parse_top(session_number, top_element, top_type='normal'):
-    top_number = top_element.xpath('.//h2[@class="top-number"]')[0].text_content()
-    if top_type == 'normal':
-        top_number = TOP_NUMBER_RE.search(top_number).group(1)
-    elif top_type == 'simple':
-        # Their internal representation of simple top numbers
-        top_number = '999' + TOP_SIMPLE_NUMBER_RE.search(top_number).group(1)
+    # Try to find the top number with the updated XPath
+    top_number_elements = top_element.xpath('.//h2[@class="top-number"]')
+    if not top_number_elements:
+        # Try alternative XPath patterns
+        top_number_elements = top_element.xpath('.//h2[contains(@class, "top-number")]')
+    
+    if not top_number_elements:
+        # If still not found, try a more generic approach
+        top_number_elements = top_element.xpath('.//*[contains(text(), "TOP")]')
+    
+    if not top_number_elements:
+        print(f"Warning: Could not find TOP number for session {session_number}")
+        # Use a default TOP number if we can't find the actual one
+        top_number = "unknown"
+    else:
+        top_number = top_number_elements[0].text_content()
+        
+        if top_type == 'normal':
+            match = TOP_NUMBER_RE.search(top_number)
+            if match:
+                top_number = match.group(1)
+            else:
+                print(f"Warning: Could not parse TOP number '{top_number}' for session {session_number}")
+                top_number = "unknown"
+        elif top_type == 'simple':
+            # Their internal representation of simple top numbers
+            match = TOP_SIMPLE_NUMBER_RE.search(top_number)
+            if match:
+                top_number = '999' + match.group(1)
+            else:
+                print(f"Warning: Could not parse simple TOP number '{top_number}' for session {session_number}")
+                top_number = "999unknown"
 
-    title = top_element.xpath('.//div[@class="top-header-content-box"]//a')[0].text_content()
+    # Try to find the title with the updated XPath
+    title_elements = top_element.xpath('.//div[@class="top-header-content-box"]//a')
+    if not title_elements:
+        # Try alternative XPath patterns
+        title_elements = top_element.xpath('.//div[contains(@class, "top-header-content")]//a')
+    
+    if not title_elements:
+        # If still not found, try a more generic approach
+        title_elements = top_element.xpath('.//a')
+    
+    if not title_elements:
+        print(f"Warning: Could not find title for TOP {top_number} in session {session_number}")
+        title = f"Unknown title for TOP {top_number}"
+    else:
+        title = title_elements[0].text_content()
+
     data = {
         'number': top_number,
         'title': title,
@@ -362,9 +403,14 @@ def parse_top(session_number, top_element, top_type='normal'):
         'session_number': session_number,
     }
     print(top_number, end=' ')
-    root = etree.fromstring(get(TOP_URL.format(num=session_number, top=top_number)))
-    top_details = dict(parse_top_detail(root))
-    data.update(top_details)
+    
+    try:
+        root = etree.fromstring(get(TOP_URL.format(num=session_number, top=top_number)))
+        top_details = dict(parse_top_detail(root))
+        data.update(top_details)
+    except Exception as e:
+        print(f"\nError processing TOP {top_number} in session {session_number}: {str(e)}")
+    
     return data
 
 
@@ -387,3 +433,46 @@ def get_session_tops(session_number):
             top_type = TOP_SECTIONS[section_heading]
         else:
             raise Exception('Unexpected section tag {}'.format(section.tag))
+
+
+def parse_top_detail(root):
+    heading_elements = defaultdict(list)
+    heading = None
+    
+    # Updated XPath to find the content elements
+    content_elements = root.xpath('.//div[contains(@class, "top-content-full")]/*')
+    if not content_elements:
+        # Try alternative XPath patterns
+        content_elements = root.xpath('.//*[contains(@class, "top-content")]/*')
+    
+    if not content_elements:
+        # If still not found, try a more generic approach
+        content_elements = root.xpath('.//*[contains(@class, "content")]/*')
+    
+    for element in content_elements:
+        if element.tag == 'h3':
+            title = element.text_content().strip()
+            if title in TOP_HEADINGS:
+                heading = TOP_HEADINGS[title]
+            else:
+                # Handle unknown headings
+                print(f"Warning: Unknown heading '{title}'")
+                heading = None
+        elif element.tag == 'div' and 'class' in element.attrib and 'related-tops' in element.attrib['class']:
+            heading = 'related_tops'
+            heading_elements[heading].append(element)
+        elif element.tag == 'div' and 'class' in element.attrib and 'ts-members' in element.attrib['class']:
+            heading = 'speeches'
+            heading_elements[heading].append(element)
+        elif element.tag == 'ul' and 'class' in element.attrib and 'link-list doc-list' in element.attrib['class'] and heading != 'documents':
+            heading = 'links'
+            heading_elements[heading].append(element)
+        elif heading is not None:
+            heading_elements[heading].append(element)
+
+    for kind, element_list in heading_elements.items():
+        parser = TOP_PARSERS.get(kind)
+        if parser is None:
+            print('no parser for', kind)
+            continue
+        yield (kind, parser(element_list))
