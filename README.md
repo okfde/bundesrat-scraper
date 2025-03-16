@@ -12,20 +12,14 @@ The plan:
 
 ## Setup 
 
-Everything is tested unter Python 3.6.8, so please install anaconda to use this version of python. It is optimized for Arch Linux, but should work with other Linux Distros as well. The `pdftohtml` dependency is required for the `pdfcutter` tool to work.
+Everything is tested unter Python 3.13.2, It is optimized for Arch Linux, but should work with other Linux Distros as well. The `pdftohtml` dependency is required for the `pdfcutter` tool to work.
 
 ```
-  pip install --user jupyter
-  yay -S anaconda --noconfirm #Or your package manager
   yay -S poppler --noconfirm #Or your package manager, need pdftohtml program
-  source /opt/anaconda/bin/activate root
-  conda create -n py368 python=3.6 ipykernel
-  sudo conda install -y nb_conda_kernels
-  conda activate py368
-  sudo conda install -y lxml
-  pip install --user pdfcutter requests lxml
-  pip install --user wand #Only needed for the graphical debugger of pdfcutter
-  sudo ipython3 kernel install #Otherwise Jupyter can't find kernel
+  python -m venv here
+  source here/bin/activate
+  pip install jupyter lxml pdfcutter requests lxml wand #wand only needed for the graphical debugger of pdfcutter
+  sudo ipython kernel install #Otherwise Jupyter can't find kernel; Might have to use absolute path for ipython s.t. sudo can find it; find it with `which ipython`
 ```
 
 ## Usage
@@ -33,7 +27,7 @@ Everything is tested unter Python 3.6.8, so please install anaconda to use this 
 To scrape the sessions and their agenda items, connect to the internet and open the bundesrat-scraper with:
 
 ```
-  source /opt/anaconda/bin/activate py368
+  source here/bin/activate
   jupyter notebook bundesrat-scraper/bundesrat/bundesrat_scraper.ipynb
 ```
 
