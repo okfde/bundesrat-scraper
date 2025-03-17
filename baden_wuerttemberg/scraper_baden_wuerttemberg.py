@@ -15,7 +15,7 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://stm.baden-wuerttemberg.de/de/vertretung-beim-bund/service-und-presse/bundesratsinitiativen/'
+INDEX_URL = 'https://stm.baden-wuerttemberg.de/de/vertretung-beim-bund/bundesrat/bundesratsinitiativen-und-abstimmungsverhalten'
 NUM_RE = re.compile(r'(\d+)\. Sitzung des Bundesrates am .*')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
@@ -24,13 +24,17 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
     def _get_pdf_urls(self):
         response = requests.get(INDEX_URL)
         root = etree.fromstring(response.content)
-        names = root.xpath('//*[@id="accordion-item-489-content"]/div/p/a')
+        # Updated XPath to target the links in the accordion content for "Abstimmungsverhalten"
+        names = root.xpath('//div[@id="accordion-item-28900-content"]//a[contains(@href, ".pdf") and contains(text(), "Sitzung des Bundesrates")]')
         for name in names:
             text = name.text_content()
-            num = int(NUM_RE.search(text).group(1))
-            link = name.attrib['href']
-
-            yield int(num), link
+            num_match = NUM_RE.search(text)
+            if num_match:
+                num = int(num_match.group(1))
+                link = name.attrib['href']
+                if not link.startswith('http'):
+                    link = 'https://stm.baden-wuerttemberg.de' + link
+                yield int(num), link
 
 #Senats/BR Texts and TOPS in BW  all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
@@ -69,4 +73,3 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #In BW all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
         return SenatsAndBRTextExtractor(cutter)
-
