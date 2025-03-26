@@ -16,10 +16,9 @@ Everything is tested unter Python 3.13.2, It is optimized for Arch Linux, but sh
 
 ```
   yay -S poppler --noconfirm #Or your package manager, need pdftohtml program
-  python -m venv here
-  source here/bin/activate
-  pip install jupyter lxml pdfcutter requests lxml wand #wand only needed for the graphical debugger of pdfcutter
-  sudo ipython kernel install #Otherwise Jupyter can't find kernel; Might have to use absolute path for ipython s.t. sudo can find it; find it with `which ipython`
+  python -m venv pyvenv
+  source pyvenv/bin/activate
+  pip install -r requirements.txt
 ```
 
 ## Usage

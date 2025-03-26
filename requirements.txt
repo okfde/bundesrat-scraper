@@ -1,3 +1,4 @@
 requests
 lxml
 git+https://github.com/NWuensche/pdfcutter.git #Replace again with pdfcutter from pip if commit merged https://github.com/stefanw/pdfcutter/pull/2
+wand #For graphical debugging
