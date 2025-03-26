@@ -54,12 +54,12 @@ if not sessions:
 
 # In[8]:
 
-
 for session in sessions:
     if 'tops' in session:
         continue
     print('\nLoading tops of: %s' % session['number'])
 
+    # Have to sort tops. e.g. session 1051 has tops 1,2,53,63,...,3,... . But all PDFs are sorted naturally (1,2,3,...), hence making scraping easier when sorting
     session['tops'] = list(bundesrat.get_session_tops(session['number']))
     with open('sessions.json', 'w') as f:
         json.dump(sessions, f)

@@ -45,8 +45,50 @@ def get_reformatted_tops(top_nums):
 #Also add to reformated TOPs the (if present) next TOP
 def extractOriginalAndReformatedTOPNumbers(session):
     top_nums = [t['number'] for t in session['tops'] if t['top_type'] == 'normal'] # 1, 2, 3a, 3b, 4,....
-    reformatted_top_nums = get_reformatted_tops(top_nums) #1., 2., 3. a), 3. b), 4.,...
-    return zip(top_nums, with_next(reformatted_top_nums))
+    sorted_top_nums=sorted(top_nums, key=get_sort_key)
+    print(sorted_top_nums)
+    reformatted_top_nums = get_reformatted_tops(sorted_top_nums) #1., 2., 3. a), 3. b), 4.,...
+    return zip(sorted_top_nums, with_next(reformatted_top_nums))
+
+def get_sort_key(item):
+    """
+    Sort a list of mixed numeric and alphanumeric items.
+
+    This function handles:
+    - Pure numbers (like 1, 3, 10)
+    - Items with numeric prefix followed by letters (like 23a, 23b)
+
+    Args:
+        items: List of strings or numbers to be sorted
+
+    Returns:
+        Sorted list
+
+    1 3 10 23a 23b 24
+    into
+    1 3 10 23a 23b 24
+    """
+    # Convert item to string for processing
+    item_str = item.strip()
+
+    # If item is purely numeric, return it as a number for proper sorting
+    if item_str.isdigit():
+        return (int(item_str), "")
+
+    # For items like "23a", split into numeric and alpha parts
+    numeric_part = ""
+    alpha_part = ""
+
+    for i, char in enumerate(item_str):
+        if char.isdigit():
+            numeric_part += char
+        else:
+            alpha_part = item_str[i:]
+            break
+
+    # Return tuple of (numeric_part, alpha_part) for sorting
+    return (int(numeric_part) if numeric_part else 0, alpha_part)
+
 
 def with_next(iterable):
     a, b = itertools.tee(iterable)
