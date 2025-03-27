@@ -24,7 +24,7 @@ def get_filename_url(url):
     return filename
 
 def get_session_pdf_filename(session, PDF_URLS):
-    url = PDF_URLS[session['number']]
+    url = PDF_URLS.get(session['number'], PDF_URLS.get(str(session['number'])))  #not cache uses int, cache uses str
     return get_filename_url(url)
 
 
