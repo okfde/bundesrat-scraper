@@ -56,8 +56,9 @@ else:
 
 for session in sessions:
     num = session['number']
-#    if str(num) != "1051": #TODO Change
-#        continue
+    if str(num) in session_tops:
+        continue
+
     print('\nLoading tops of: %s' % num)
 
     #Need class for later init, don't have all params by now

@@ -194,6 +194,8 @@ class VerticalSenatsAndBRTextExtractor(AbstractSenatsAndBRTextExtractor):
 #        dVis.showCutter(br_text)
 
         senats_text = senats_text.clean_text()
+        if not senats_text.strip():
+            print('empty') #TODO
         br_text = br_text.clean_text()
         #print(senats_text)
         #print("1")

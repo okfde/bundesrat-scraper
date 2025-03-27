@@ -26,6 +26,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     #There is no better way than to use the "search" pagination from the page, take all links, go to next page, take all links there.. There is no single list with all pdfs anymore and I couldn't find a way to increase the page size itsel
+    # 988 does not have a PDF (returns 404), 997 has a pdf but doesn't contain any Abstimmungsverhalten (it's a letter from Markus Söder)
     def _get_pdf_urls(self):
         page_num = 0
 
@@ -123,6 +124,16 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             formatTOPsWithSubpart="{number}{subpart}." #e.g. 45a. in BA 984
         elif self.sessionNumber == 992 and top == "70. b)" :
             formatTOPsWithSubpart="{number}.{subpart})." #e.g. 70.b). in BA 992
+        elif self.sessionNumber >= 1019:
+            formatTOPsWithSubpart="{number}.{subpart})" #e.g. 24.a) in BA 1051
+        elif self.sessionNumber >= 1015:
+            formatTOPsWithSubpart="{number}{subpart}.)" #e.g. 1a.) in BA 1018
+        elif self.sessionNumber >= 1011:
+            formatTOPsWithSubpart="{number}.{subpart})" #e.g. 1.a) in BA 1014
+        elif self.sessionNumber == 1010:
+            formatTOPsWithSubpart="{number}.{subpart}" #e.g. 1.a in BA 1010
+        elif self.sessionNumber >= 993:
+            formatTOPsWithSubpart="{number}{subpart})." #e.g. 1.a in BA 1010
         return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart)
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
@@ -131,7 +142,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(cutter,
                 # Taken from pdftohtml -xml output
                 page_heading = 129,
-                page_footer = 773,
-                senatLeft = 565,
+                page_footer = 800,
+                senatLeft = 490, #From 1051
                 brLeft = 855,
          )
