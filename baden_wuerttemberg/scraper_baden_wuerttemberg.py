@@ -61,6 +61,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             senats_text = senats_text.above(selectionNextTOP)
 
         senats_text = senats_text.clean_text()
+        if not senats_text.strip():
+            print('empty')
 
         br_text = "" #BW doesnt repeat BR Text in its PDFs
         return senats_text, br_text
