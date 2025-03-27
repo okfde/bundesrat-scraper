@@ -20,12 +20,12 @@ import MainBoilerPlate
 INDEX_URL = 'https://www.bayern.de/staatskanzlei/bayern-in-berlin/plenarsitzungen-im-bundesrat/'
 BASE_URL = 'https://www.bayern.de'
 AJAX_URL = 'https://www.bayern.de/wp-content/themes/bayernde/functions.ajax.php'
-NUM_RE = re.compile(r'.*/.*[Aa]bstimmungsverhalten-(\d+).*.pdf$')
+NUM_RE = re.compile(r'.*/.*[Aa]bstimmung[^0-9]*(\d+).*.pdf$') #E.g. 1012 has an extra -1 at the end of the link, hence want first number in link
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
-    #There is no better way than to use the "search" pagination from the page, take all links, go to next page, take all links there... . There is no single list with all pdfs anymore and I couldn't find a way to increase the page size itself
+    #There is no better way than to use the "search" pagination from the page, take all links, go to next page, take all links there.. There is no single list with all pdfs anymore and I couldn't find a way to increase the page size itsel
     def _get_pdf_urls(self):
         page_num = 0
         
@@ -101,24 +101,29 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
                     # Find all PDF links on the detail page
                     pdf_links = detail_soup.select('a[href$=".pdf"]')
                     
-                    if pdf_links:
-                        # Get the last PDF link on the page
-                        pdf_link = pdf_links[-1].get('href')
-                        
+                    # Find the first PDF that matches the NUM_RE regex
+                    matching_pdf = None
+                    for link in pdf_links:
+                        pdf_link = link.get('href')
+                        if NUM_RE.search(pdf_link):
+                            matching_pdf = pdf_link
+                            break
+                    
+                    if matching_pdf:
                         # Extract the session number from the PDF filename
-                        num_match = NUM_RE.search(pdf_link)
+                        num_match = NUM_RE.search(matching_pdf)
                         if num_match:
                             num = int(num_match.group(1))
                             print(num)
                             
                             # Ensure the link is absolute
-                            if not pdf_link.startswith('http'):
-                                if pdf_link.startswith('/'):
-                                    pdf_link = BASE_URL + pdf_link
+                            if not matching_pdf.startswith('http'):
+                                if matching_pdf.startswith('/'):
+                                    matching_pdf = BASE_URL + matching_pdf
                                 else:
-                                    pdf_link = BASE_URL + '/' + pdf_link
+                                    matching_pdf = BASE_URL + '/' + matching_pdf
                                 
-                            yield num, pdf_link
+                            yield num, matching_pdf
                 except Exception as e:
                     print(f"Error processing detail URL {detail_url}: {e}")
                     continue
