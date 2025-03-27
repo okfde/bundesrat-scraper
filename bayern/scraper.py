@@ -61,7 +61,7 @@ for session in sessions:
     print('\nLoading tops of: %s' % num)
 
     #Need class for later init, don't have all params by now
-    result = scraper_bayern.MainExtractorMethod(scraper_bayern.TextExtractorHolder).get_session(session, from_json=USE_CACHE)
+    result = scraper_bayern.MainExtractorMethod(scraper_bayern.TextExtractorHolder).get_session(session)
     if result is None:
         continue
     session_tops[str(num)] = result
