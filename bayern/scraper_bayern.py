@@ -1,8 +1,10 @@
 import re
 import pdb
+import json
 
 import requests
 from lxml import html as etree
+from bs4 import BeautifulSoup
 
 import pdfcutter
 
@@ -15,27 +17,114 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://www.bayern.de/staatsregierung/bayern-in-berlin/bayern-im-bundesrat_/bayerische-voten-im-bundesrat/'
-BASE_URL='https://www.bayern.de'
+INDEX_URL = 'https://www.bayern.de/staatskanzlei/bayern-in-berlin/plenarsitzungen-im-bundesrat/'
+BASE_URL = 'https://www.bayern.de'
+AJAX_URL = 'https://www.bayern.de/wp-content/themes/bayernde/functions.ajax.php'
 NUM_RE = re.compile(r'.*/.*[Aa]bstimmungsverhalten-(\d+).*.pdf$')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
+    #There is no better way than to use the "search" pagination from the page, take all links, go to next page, take all links there... . There is no single list with all pdfs anymore and I couldn't find a way to increase the page size itself
     def _get_pdf_urls(self):
-        response = requests.get(INDEX_URL)
-        root = etree.fromstring(response.content)
-        names = root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div/ul/li/a')
-        names += root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div[1]/ul/li/span/a') #986 has extra span, there need to add it manually, last li without index because it changes when new session is added
-        names += root.xpath('/html/body/div[1]/div[6]/div/div[2]/div[5]/div[1]/div[3]/div[3]/div/div/p[2]/a') #2014 needs special treatment, no index last div because it changes when new year is added
-        for name in names:
-            link = name.attrib['href']
-            num = int(NUM_RE.search(link).group(1))
-            if "http" in link : #already full path in a tag (e.g. BA 951), else append to absolute path
-                realLink = link
-            else:
-                realLink = BASE_URL + link 
-            yield num, realLink
+        page_num = 0
+        
+        while True:
+            # Set up headers and cookies for the AJAX request
+            headers = {
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9,de-DE;q=0.8,de;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Origin': 'https://www.bayern.de',
+                'Pragma': 'no-cache',
+                'Referer': 'https://www.bayern.de/staatskanzlei/bayern-in-berlin/plenarsitzungen-im-bundesrat/',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin',
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+                'X-Requested-With': 'XMLHttpRequest',
+                'sec-ch-ua': '"Not:A-Brand";v="24", "Chromium";v="134"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Linux"'
+            }
+            
+            cookies = {
+                'BYDE_pagi': str(page_num)
+            }
+            
+            data = {
+                'action': 'byde_load_data',
+                'kategorien': '[93]',
+                'sb': '',
+                'd1': '',
+                'd2': '',
+                'seitenid': '48110',
+                'anzeige_3_spalte': 'ja',
+                'inhalt_3_spalte': 'cat',
+                'pagi': str(page_num + 1)
+            }
+            
+            # Make the AJAX request
+            response = requests.post(AJAX_URL, headers=headers, cookies=cookies, data=data)
+            
+            # Check if we got a valid response
+            if response.status_code != 200 or not response.text:
+                break
+                
+            # Parse the HTML content from the AJAX response
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Find all search result titles
+            search_titles = soup.select('.item-search-title a')
+            
+            if not search_titles:
+                break
+                
+            # Process each search result
+            for title in search_titles:
+                detail_url = title.get('href')
+                
+                # Ensure detail_url has the proper scheme
+                if not detail_url.startswith('http'):
+                    if detail_url.startswith('/'):
+                        detail_url = BASE_URL + detail_url
+                    else:
+                        detail_url = BASE_URL + '/' + detail_url
+                
+                try:
+                    # Get the detail page to find the PDF link
+                    detail_response = requests.get(detail_url)
+                    detail_soup = BeautifulSoup(detail_response.content, 'html.parser')
+                    
+                    # Find all PDF links on the detail page
+                    pdf_links = detail_soup.select('a[href$=".pdf"]')
+                    
+                    if pdf_links:
+                        # Get the last PDF link on the page
+                        pdf_link = pdf_links[-1].get('href')
+                        
+                        # Extract the session number from the PDF filename
+                        num_match = NUM_RE.search(pdf_link)
+                        if num_match:
+                            num = int(num_match.group(1))
+                            print(num)
+                            
+                            # Ensure the link is absolute
+                            if not pdf_link.startswith('http'):
+                                if pdf_link.startswith('/'):
+                                    pdf_link = BASE_URL + pdf_link
+                                else:
+                                    pdf_link = BASE_URL + '/' + pdf_link
+                                
+                            yield num, pdf_link
+                except Exception as e:
+                    print(f"Error processing detail URL {detail_url}: {e}")
+                    continue
+            
+            # Move to the next page
+            page_num += 1
 
 #Senats/BR Texts and TOPS in BA  all have same formatting
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
@@ -64,6 +153,3 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                 senatLeft = 565,
                 brLeft = 855,
          )
-
-
-
