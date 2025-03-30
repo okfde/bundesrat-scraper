@@ -12,19 +12,82 @@ def escapeForRegex(s):
 
 def get_filename_url(url):
     splitresult = urlsplit(url)
-    filename = splitresult.path.replace('/', '_')
-    filename = os.path.join('./_cache', filename)
-    if os.path.exists(filename):
-        return filename
-    response = requests.get(url, headers={'User-Agent': '-'}) #Need this for MV (else after ~5 PDFs cant download anymore) and don't want to restructure everything to add User-Agent, so just try to add it always and see if it breaks somewhere
-    if response.status_code != 200:
-        raise Exception('{} not found'.format(url))
-    with open(filename, 'wb') as f:
-        f.write(response.content)
-    return filename
+    # Ensure path is a string before replacing
+    path = splitresult.path
+    if isinstance(path, bytes):
+        path = path.decode('utf-8')
+    
+    # Extract the filename from the path
+    if path.endswith('/'):
+        # If path ends with /, use the last directory name
+        parts = path.rstrip('/').split('/')
+        filename = parts[-1] if parts else 'index'
+    else:
+        # Otherwise use the last part of the path
+        filename = os.path.basename(path)
+    
+    # If filename is empty or just contains query parameters, use a default name
+    if not filename or filename.startswith('?'):
+        filename = 'document'
+    
+    # Add a unique identifier based on the URL to avoid collisions
+    import hashlib
+    url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:8]
+    filename = f"{filename}_{url_hash}"
+    
+    # Ensure the filename is safe for the filesystem
+    filename = filename.replace('/', '_').replace('\\', '_').replace(':', '_')
+    
+    cache_path = os.path.join('./_cache', filename)
+    if os.path.exists(cache_path):
+        return cache_path
+    
+    # Add retry logic with exponential backoff
+    import time
+    import random
+    from requests.exceptions import RequestException
+    
+    max_retries = 5
+    retry_delay = 2  # Initial delay in seconds
+    
+    for retry in range(max_retries):
+        try:
+            # Add a more realistic user agent
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Cache-Control': 'max-age=0'
+            }
+            
+            # Add a small delay before each request to avoid overwhelming the server
+            time.sleep(1 + random.random())
+            
+            response = requests.get(url, headers=headers, timeout=30)
+            
+            if response.status_code != 200:
+                raise Exception(f'{url} returned status code {response.status_code}')
+            
+            with open(cache_path, 'wb') as f:
+                f.write(response.content)
+            
+            return cache_path
+            
+        except RequestException as e:
+            if retry < max_retries - 1:
+                # Calculate exponential backoff with jitter
+                sleep_time = retry_delay * (2 ** retry) + random.uniform(0, 1)
+                print(f"Connection error: {e}. Retrying in {sleep_time:.2f} seconds...")
+                time.sleep(sleep_time)
+            else:
+                raise Exception(f"Failed to download {url} after {max_retries} attempts: {e}")
 
 def get_session_pdf_filename(session, PDF_URLS):
     url = PDF_URLS.get(session['number'], PDF_URLS.get(str(session['number'])))  #not cache uses int, cache uses str
+    if url is None:
+        raise KeyError(f"No PDF URL found for session {session['number']}")
     return get_filename_url(url)
 
 

@@ -22,22 +22,29 @@ class MainExtractorMethod:
             try:
                 with open(URLFILENAME, 'r') as f:
                     PDF_URLS = json.load(f)
+                    print(f"Using {len(PDF_URLS)} cached URLs from {URLFILENAME}")
             except json.JSONDecodeError:
                 # If JSON file is invalid, fall back to _get_pdf_urls()
+                print(f"Error reading {URLFILENAME}, fetching new URLs")
                 PDF_URLS = dict(self._get_pdf_urls())
         
         # If URL not found in JSON or from_json is False, get URLs from source
-        if not PDF_URLS or str(session['number']) not in PDF_URLS:
+        if not PDF_URLS:
+            print(f"No cached URLs found, fetching new URLs")
             PDF_URLS = dict(self._get_pdf_urls())
             
             # Create or update the PDF Link JSON File
             with open(URLFILENAME, 'w') as f:
-                json.dump(PDF_URLS, f)
+                # Convert keys to strings for JSON serialization
+                serializable_urls = {str(k): v for k, v in PDF_URLS.items()}
+                json.dump(serializable_urls, f)
+                print(f"Saved {len(serializable_urls)} URLs to {URLFILENAME}")
 
         try:
             filename = helper.get_session_pdf_filename(session, PDF_URLS)
-        except KeyError:
-            return
+        except KeyError as e:
+            print(f"Error: {e}")
+            return None
         print(filename)
         return self.get_beschluesse_text(session, filename)
 
