@@ -122,8 +122,8 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     def _getRightSenatBRTextExtractor(self, top, cutter): 
         return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(cutter,
             # Taken from pdftohtml -xml output
-            page_heading = 135,
+            page_heading = 80,
             page_footer = 806,
-            senatLeft = 585,
+            senatLeft = 570,
             brLeft = 910,
         )
