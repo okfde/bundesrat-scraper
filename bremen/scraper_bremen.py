@@ -76,15 +76,16 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 #Default Text Extractor for BRE
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
-        column_two = 731 #start of third (and last) column on type 2 docs, don't need anything from this third column, so just look at the stuff left from it
+        column_two = 720 #start of third (and last) column on type 2 docs, don't need anything from this third column, so just look at the stuff left from it
         page_heading = 74 #Heading on each page in e.g. 962 (Ergebnisse der ...). Isn't there for e.g. 961, so had to hardcode it.
         page_number = 1260 #Page number at the bottom of each page in e.g. 962, Isn't there for e.g. 961, so had to hardcode it.
-        senats = self.cutter.filter(auto_regex='^Senats-?') | self.cutter.filter(auto_regex='^Beschluss$')
+        senats = self.cutter.filter(auto_regex='^Senats-?') | self.cutter.filter(auto_regex='^Umlauf-?') | self.cutter.filter(auto_regex='^Beschluss$') #1049 - 55 calls them "Umlaufbeschluss" for some reason
         senats = senats.below(selectionCurrentTOP)
         if selectionNextTOP:
             senats = senats.above(selectionNextTOP)
 
-        ergebnis_br = self.cutter.filter(auto_regex='^Ergebnis BR$').below(selectionCurrentTOP)
+        ergebnis_br = self.cutter.filter(auto_regex='^Ergebnis\sBR\s*$') | self.cutter.filter(auto_regex='^Ergebnis*$') | self.cutter.filter(auto_regex='^BR*$') #1031 has two lines for Ergebnis BR
+        ergebnis_br = ergebnis_br.below(selectionCurrentTOP)
 
         if selectionNextTOP:
             ergebnis_br = ergebnis_br.above(selectionNextTOP)
@@ -109,6 +110,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 
         senats_text = senats_text.right_of(senats)
         br_text = br_text.right_of(ergebnis_br)
+        if not senats_text.clean_text():
+            print("empty")
         return senats_text.clean_text(), br_text.clean_text()
 
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
@@ -117,12 +120,14 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     # Type BRE 938-: Page titles are of form "Ergebnisse der NUM. Sitzung ...", TOPs of form \(NUM|NUM a|NUM b|...\), but NUM is filled with zeros to length 3 or 2
     def _getRightTOPPositionFinder(self, top):
         padTOPNumberToLength = 3 #Default for BRE 939-
-        formatSubpartTOP = "{number} {subpart}" #Default for BRE 939-
+        formatSubpartTOP = "{number}\s{subpart}" #Default for BRE 939-
         if 934 <= self.sessionNumber <= 937:
             return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter) #Need splitting again for these TOPs
         elif self.sessionNumber == 938:
             padTOPNumberToLength = 2
         elif self.sessionNumber == 992 and top in ["87. a)", "87. b)"]:
+            formatSubpartTOP = "{number}{subpart}" #missing Space for there two subparts only
+        elif self.sessionNumber == 1001:
             formatSubpartTOP = "{number}{subpart}" #missing Space for there two subparts only
         return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatNumberOnlyTOP = "{number}", formatSubpartTOP=formatSubpartTOP, padTOPNumberToLength = padTOPNumberToLength)
 
