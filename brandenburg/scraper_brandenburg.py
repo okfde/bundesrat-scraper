@@ -16,26 +16,48 @@ import PDFTextExtractor
 import MainBoilerPlate
 
 INDEX_URL = 'https://landesvertretung-brandenburg.de/bundesrat/abstimmungsverhalten-im-bundesrat/'
-NUM_RE = re.compile(r'(\d+)\. Sitzung des Bundesrates')
+# Updated regex to be more flexible with different formats
+NUM_RE = re.compile(r'(\d+)\.?\s+Sitzung des Bundesrat(?:es|s).*')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
         response = requests.get(INDEX_URL)
+        html_content = response.content.decode('utf-8', errors='ignore')
         root = etree.fromstring(response.content)
-
-        #Have three completely different xpaths for year-tables
-        #Therefore, filter (almost) all links (a)
-        allLinks = root.xpath('//ul/li/a')
+        
+        # Track sessions we've already found to avoid duplicates
+        found_sessions = set()
+        
+        # Process all links on the page
+        allLinks = root.xpath('//a')
         for name in allLinks:
-            text = name.text_content()
-            maybeNum = NUM_RE.search(text) #Links to a Bundesrat-PDF?
-            if maybeNum: #Also have e.g. "Mitglieder Brandenburgs im Bundesrat" as link -> Filter them out
+            # Check text content
+            text = name.text_content().strip()
+            # Check title attribute
+            title = name.get('title', '')
+            
+            # Try text content first
+            maybeNum = NUM_RE.search(text)
+            if not maybeNum and title:
+                # Then try title if text doesn't match
+                maybeNum = NUM_RE.search(title)
+                
+            if maybeNum and 'href' in name.attrib:
                 num = int(maybeNum.group(1))
+                
+                # Skip if we've already found this session
+                if num in found_sessions:
+                    continue
+                    
+                found_sessions.add(num)
                 link = name.attrib['href']
                 link = link.replace(" ", "%20") #Replace Space with HTML Escape Character
-                yield int(num), link
+                
+                # Only yield if it's a PDF link
+                if link.lower().endswith('.pdf'):
+                    yield int(num), link
 
 #Senats/BR Texts and TOPS in BW  all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
@@ -129,4 +151,3 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #In BW all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
         return SenatsAndBRTextExtractor(cutter)
-
