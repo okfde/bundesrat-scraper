@@ -63,7 +63,7 @@ class DefaultTOPPositionFinder:
 
         # All Chunks non-strict below number chunk that contain given subpart
         allSelectionsSubpartNonStrictBelowNumber = numberUpperBorder.filter(auto_regex=escapedSubpart).filter( #46. b) -> b\) because of regex brackets
-                left__gte = self.TOPRight, #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
+                left__lte = self.TOPRight, #Can't do anything if whole line is one chunk (therefore right__lte bad), but it should at least start before TOPRight
                 top__gte=self.page_heading,
         )
         #Return highest of these
