@@ -57,7 +57,11 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
                 
                 # Only yield if it's a PDF link
                 if link.lower().endswith('.pdf'):
-                    yield int(num), link
+                    if "1052" in link:
+                        yield 1052, link #There is currently a bug on the page where they link session 1052 to the name 1051
+                        yield 1051, "https://landesvertretung-brandenburg.de/wp-content/uploads/1051_Abstimmungsverhalten-BB.pdf"
+                    else:
+                        yield int(num), link
 
 #Senats/BR Texts and TOPS in BW  all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
