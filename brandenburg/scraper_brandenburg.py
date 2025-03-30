@@ -88,9 +88,24 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     def _getRightTOPPositionFinder(self, top):
         TOPRight=200
-        if self.sessionNumber >= 993:
-            print("here3")
-            formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 1051 is "19 c "
+        if self.sessionNumber >= 1033:
+            formatTOPsWithSubpart="{number}\s{subpart}" #e.g. BB 1051 is "19 c". For some reason, I can't use a normal space, but I also can't find the "right" space symbol
+        elif self.sessionNumber == 1032:
+            formatTOPsWithSubpart="{number}.\s{subpart}" #e.g. BB 1032 is 29. a
+        elif self.sessionNumber >= 1020:
+            formatTOPsWithSubpart="{number}\s{subpart}" #e.g. BB 1030 is "19 c". For some reason, I can't use a normal space, but I also can't find the "right" space symbol
+        elif self.sessionNumber == 1019:
+            formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 1019 is "20a".
+        elif self.sessionNumber >= 1015:
+            formatTOPsWithSubpart="{number}\s{subpart}" #e.g. BB 1030 is "19 c". For some reason, I can't use a normal space, but I also can't find the "right" space symbol
+        elif self.sessionNumber >= 999:
+            formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 1030 is "19 c". For some reason, I can't use a normal space, but I also can't find the "right" space symbol
+        elif self.sessionNumber == 998:
+            formatTOPsWithSubpart="{number}.{subpart})" #e.g. BB 1030 is "19 c". For some reason, I can't use a normal space, but I also can't find the "right" space symbol
+        elif self.sessionNumber == 997:
+            formatTOPsWithSubpart="{number}. {subpart})" #e.g. BB 1030 is "19 c". For some reason, I can't use a normal space, but I also can't find the "right" space symbol
+        elif self.sessionNumber >= 993:
+            formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 1030 is "19 c". For some reason, I can't use a normal space, but I also can't find the "right" space symbol
         elif self.sessionNumber >= 986:
             formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 992 23. a) is "23a"
         elif self.sessionNumber == 985:
