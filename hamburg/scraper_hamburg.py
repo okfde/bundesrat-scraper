@@ -50,9 +50,8 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         print("Fetching PDFs from Hamburg Landesvertretung...")
         for num, pdf_link in self._get_landesvertretung_pdfs():
             # Only add if not already found or replace if better source
-            if num not in found_pdfs:
-                found_pdfs[num] = pdf_link
-                print(f"Found session {num} from Landesvertretung")
+            found_pdfs[num] = pdf_link #Want to override, because these are the better "Abstimmungsverhalten" with more information
+            print(f"Found session {num} from Landesvertretung")
         
         print(f"Total unique sessions found: {len(found_pdfs)}")
         
@@ -165,7 +164,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         selectionsNextPDFTOPs = self.cutter.all().filter(
             doc_top__gt  = selectionCurrentTOP.doc_top,
             left__gte = selectionCurrentTOP.left - 10,
-            right__lte = selectionCurrentTOP.right + 30, #Offset for subpart
+            right__lte = selectionCurrentTOP.right + 30, #Offset for subpart #TODO 30 or 100?
             top__gte=page_heading, #Ignore Page Footer
             bottom__lt=page_footer, #Else, 983 21a matches "Ergebnisse.doc" Footer and not TOP 21b
         )
@@ -209,12 +208,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #Can't uncouple Subpart from number TOP (e.g. HA 985 "9a" ) , so use EntwinedNumberSubpartTOPPositionFinder for this
     # Also search for TOPs with prefix "TOP", because only number (e.g. HA 985 TOP 4) is to general to get right selection
     def _getRightTOPPositionFinder(self, top):
-        if self.sessionNumber <= 1017:
-            formatTOPsOnlyNumber="TOP {number}[ :]*$" #e.g. HA 985 4 is "TOP 4". Use $ to not match "TOP 1" with "TOP 11", but allow spaces and colons. TODO This $,[] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but $,[],* doesn't and I abuse this.
-            #TODO Are there even TOPs in HA with ":" after TOP Number/Subpart? Think so, but couldn't find them anymore
-            formatTOPsWithSubpart="{number}{subpart}" #e.g. HA 985 9. a) is "TOP 9a" (Has to start with TOP because I check for prefix) TODO This [] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but [],* doesn't and I abuse this.
-            return CustomTOPFormatPositionFinderNoPrefix(self.cutter, formatNumberOnlyTOP= formatTOPsOnlyNumber, formatSubpartTOP= formatTOPsWithSubpart)
-        return CustomTOPFormatPositionFinderNoPrefix(self.cutter)
+        return CustomTOPFormatPositionFinderNoPrefix(self.cutter) #TODO Go on here
 
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
