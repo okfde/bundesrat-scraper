@@ -4,6 +4,10 @@ import os
 import requests
 from pdfcutter import utils
 from lxml import html as etree
+import urllib3
+
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 #Escape . and ) in TOPs for regex
 #Cant use re.escape because it escapes spaces too, which is bad for later split
@@ -71,7 +75,8 @@ def get_filename_url(url):
             # Add a small delay before each request to avoid overwhelming the server
             time.sleep(1 + random.random())
             
-            response = requests.get(url, headers=headers, timeout=30)
+            # Ignore SSL certificate verification, needed e.g. Hamburg 1048 pdf
+            response = requests.get(url, headers=headers, timeout=30, verify=False)
             
             if response.status_code != 200:
                 raise Exception(f'{url} returned status code {response.status_code}')

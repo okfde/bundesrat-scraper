@@ -209,7 +209,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #Can't uncouple Subpart from number TOP (e.g. HA 985 "9a" ) , so use EntwinedNumberSubpartTOPPositionFinder for this
     # Also search for TOPs with prefix "TOP", because only number (e.g. HA 985 TOP 4) is to general to get right selection
     def _getRightTOPPositionFinder(self, top):
-        if self.sessionNumber <= 992:
+        if self.sessionNumber <= 1017:
             formatTOPsOnlyNumber="TOP {number}[ :]*$" #e.g. HA 985 4 is "TOP 4". Use $ to not match "TOP 1" with "TOP 11", but allow spaces and colons. TODO This $,[] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but $,[],* doesn't and I abuse this.
             #TODO Are there even TOPs in HA with ":" after TOP Number/Subpart? Think so, but couldn't find them anymore
             formatTOPsWithSubpart="{number}{subpart}" #e.g. HA 985 9. a) is "TOP 9a" (Has to start with TOP because I check for prefix) TODO This [] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but [],* doesn't and I abuse this.
