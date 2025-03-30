@@ -17,7 +17,6 @@ import MainBoilerPlate
 
 INDEX_URL = 'https://landesvertretung-brandenburg.de/bundesrat/abstimmungsverhalten-im-bundesrat/'
 NUM_RE = re.compile(r'(\d+)\. Sitzung des Bundesrates')
-BR_TEXT_RE = re.compile(r'^Ergebnis BR:')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -79,13 +78,20 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             top__lt = page_footer# Match otherwise page number for e.g. 984 26
         ).clean_text()
 
+        if not senats_text.strip():
+            print('empty') #TODO
+
+
         return senats_text, br_text
 
 #Senats/BR Texts and TOPS in BW  all have same formatting
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     def _getRightTOPPositionFinder(self, top):
         TOPRight=200
-        if self.sessionNumber >= 986:
+        if self.sessionNumber >= 993:
+            print("here3")
+            formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 1051 is "19 c "
+        elif self.sessionNumber >= 986:
             formatTOPsWithSubpart="{number}{subpart}" #e.g. BB 992 23. a) is "23a"
         elif self.sessionNumber == 985:
             formatTOPsWithSubpart="{number} {subpart}" #e.g. BB 985 9. a) is "9 a"
