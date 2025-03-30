@@ -30,20 +30,30 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
         response = requests.get(INDEX_URL)
         root = etree.fromstring(response.content)
-        fields = root.xpath('/html/body/div[1]/div/div/div[2]/div/div[3]/div/div[2]/div[2]/div/ul/li[3]/h3/a') #All Search Result links
-        for field in fields:
-            redirectLink = BASE_URL + field.attrib['href'] #HA Redirects you to other site before you can download actual PDF
+        
+        # Updated XPath to match the new structure of the Hamburg transparency portal
+        # Find all links to dataset pages
+        dataset_links = root.xpath('//h3/a[contains(@href, "/dataset/abstimmverhalten")]')
+        
+        for dataset_link in dataset_links:
+            redirectLink = dataset_link.attrib['href']
+            if not redirectLink.startswith('http'):
+                redirectLink = BASE_URL + redirectLink
+                
             maybeNum = NUM_RE.search(redirectLink)
-            if not maybeNum: #Doesn't link to 
+            if not maybeNum: # Doesn't link to Bundesrat session
                 continue
             num = int(maybeNum.group(1))
 
             redirectResponse = requests.get(redirectLink)
             redirectRoot = etree.fromstring(redirectResponse.content)
-            pdfATag = redirectRoot.xpath('/html/body/div[1]/div/div/div[2]/div/div[3]/div/div[2]/div/ul/li/div/div[2]/div[1]/a')[0] #Only one element with that xpath
             
-            pdfLink =  pdfATag.attrib['href']
-            yield int(num), pdfLink
+            # Updated XPath to find PDF links on the detail page
+            pdf_links = redirectRoot.xpath('//a[contains(@href, ".PDF") or contains(@href, ".pdf")]')
+            
+            if pdf_links:
+                pdfLink = pdf_links[0].attrib['href']
+                yield int(num), pdfLink
 
 #HA don't have all TOPs in PDF, and them again in non-linear order
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
@@ -108,4 +118,3 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #In HA all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
         return SenatsAndBRTextExtractor(cutter)
-
