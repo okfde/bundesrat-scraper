@@ -15,8 +15,8 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-PREFIX="die"
-INDEX_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/service/bundesratsbeschluesse-17466'
+PREFIX="der"
+INDEX_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/service/bundesratsbeschluesse-21671'
 PDF_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'#doesn't work anymore for e.g. Session 986
 BASE_URL = 'https://www.{pre}bevollmaechtigte.bremen.de'
 
