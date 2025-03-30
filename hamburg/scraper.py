@@ -55,8 +55,10 @@ else:
 
 for session in sessions:
     num = session['number']
-    if str(num) in session_tops:
-        continue
+#    if str(num) in session_tops: TODO Back
+#        continue
+#    if str(num) in session_tops: TODO Back
+#        continue
     print('\nLoading tops of: %s' % num)
 
     #Need class for later init, don't have all params by now

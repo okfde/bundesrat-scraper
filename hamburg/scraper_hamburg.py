@@ -174,7 +174,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         #Get indented Text, Senats text is everything intended before next TOP
         TOPRightIndented = self.cutter.all().filter(
             doc_top__gte = selectionCurrentTOP.doc_top -10, #Start with line where TOP stands
-            left__gte = selectionCurrentTOP.left + 100,
+            left__gte = selectionCurrentTOP.left + 30,
             top__gte=page_heading, #Ignore Page header
             bottom__lt=page_footer, #Ignore Page Footer
         )
@@ -182,8 +182,11 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         if selectionDirectNextTOP: #Next TOP as lower bound
             TOPRightIndented = TOPRightIndented.above(selectionDirectNextTOP)
 
+        #dVis.showCutter(TOPRightIndented)
         senats_text = helper.cleanTextOrderedByDocTop(TOPRightIndented)  #Else, pdfcutter orders by top, not by doc_top, making multi-site selection strangely sorted
         br_text = senats_text #Whole Text where senat and br and both mentioned, so just copy it
+        if not senats_text.strip():
+            print('empty')
         return senats_text, br_text
 
     #Fork of DefaultTOPPositionFinder class in PDFTextExtractor File, but need it now for finding alternative next TOP as well, so just copy-pasted it and added not empty Selecion Check.
@@ -206,10 +209,13 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #Can't uncouple Subpart from number TOP (e.g. HA 985 "9a" ) , so use EntwinedNumberSubpartTOPPositionFinder for this
     # Also search for TOPs with prefix "TOP", because only number (e.g. HA 985 TOP 4) is to general to get right selection
     def _getRightTOPPositionFinder(self, top):
-        formatTOPsOnlyNumber="TOP {number}[ :]*$" #e.g. HA 985 4 is "TOP 4". Use $ to not match "TOP 1" with "TOP 11", but allow spaces and colons. TODO This $,[] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but $,[],* doesn't and I abuse this.
-        #TODO Are there even TOPs in HA with ":" after TOP Number/Subpart? Think so, but couldn't find them anymore
-        formatTOPsWithSubpart="{number}{subpart}" #e.g. HA 985 9. a) is "TOP 9a" (Has to start with TOP because I check for prefix) TODO This [] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but [],* doesn't and I abuse this.
-        return CustomTOPFormatPositionFinderNoPrefix(self.cutter, formatNumberOnlyTOP= formatTOPsOnlyNumber, formatSubpartTOP= formatTOPsWithSubpart)
+        if self.sessionNumber <= 992:
+            formatTOPsOnlyNumber="TOP {number}[ :]*$" #e.g. HA 985 4 is "TOP 4". Use $ to not match "TOP 1" with "TOP 11", but allow spaces and colons. TODO This $,[] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but $,[],* doesn't and I abuse this.
+            #TODO Are there even TOPs in HA with ":" after TOP Number/Subpart? Think so, but couldn't find them anymore
+            formatTOPsWithSubpart="{number}{subpart}" #e.g. HA 985 9. a) is "TOP 9a" (Has to start with TOP because I check for prefix) TODO This [] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but [],* doesn't and I abuse this.
+            return CustomTOPFormatPositionFinderNoPrefix(self.cutter, formatNumberOnlyTOP= formatTOPsOnlyNumber, formatSubpartTOP= formatTOPsWithSubpart)
+        return CustomTOPFormatPositionFinderNoPrefix(self.cutter)
+
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In HA all Text Rules are consistent
