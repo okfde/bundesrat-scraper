@@ -16,7 +16,7 @@ import PDFTextExtractor
 import MainBoilerPlate
 
 PREFIX="der"
-INDEX_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/service/bundesratsbeschluesse-21671'
+INDEX_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/bund/bundesratsbeschluesse-21671'
 PDF_URL = 'https://www.{pre}bevollmaechtigte.bremen.de/sixcms/media.php/13/{number}.%20BR-Sitzung_Kurzbericht.pdf'#doesn't work anymore for e.g. Session 986
 BASE_URL = 'https://www.{pre}bevollmaechtigte.bremen.de'
 
@@ -28,33 +28,50 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         try:
             requests.get(INDEX_URL.format(pre=PREFIX))
         except Exception:
-            PREFIX = "der"
+            PREFIX = "die"
 
         response = requests.get(INDEX_URL.format(pre=PREFIX))
         root = etree.fromstring(response.content)
-        namesLinks = root.xpath('//*[@id="main"]/div[3]/div/div[2]/ul/li/a')
-        namesTexts = root.xpath('//*[@id="main"]/div[3]/div/div[2]/ul/li/a/span') #Session Title inside span of a-tag -> zip it together to get both
-        for link, spanWithText in zip(namesLinks, namesTexts):
-            text = spanWithText.text_content()
-            num = LINK_TEXT_RE.search(text)
+        
+        # Find all news_liste elements which contain the session links
+        news_lists = root.xpath('//ul[@class="news_liste"]')
+        
+        for news_list in news_lists:
+            links = news_list.xpath('.//li/a')
+            for link in links:
+                text = link.xpath('./span/text()')[0] if link.xpath('./span/text()') else ''
+                num = LINK_TEXT_RE.search(text)
 
-            if num is None:
-                continue
-            num = int(num.group(1))
-            if num == 955: #Special Session, no PDF available
-                continue
+                if num is None:
+                    continue
+                num = int(num.group(1))
+                if num == 955: #Special Session, no PDF available
+                    continue
 
-            if "https" in link.attrib['href']: #Sometimes, they have relative href (e.g. 972) and sometimes absolute href (e.g. 971)
-                redirectLink = link.attrib['href']
-            else:
-                redirectLink = BASE_URL.format(pre=PREFIX) + link.attrib['href']
+                if "https" in link.attrib['href']: #Sometimes, they have relative href (e.g. 972) and sometimes absolute href (e.g. 971)
+                    redirectLink = link.attrib['href']
+                else:
+                    redirectLink = BASE_URL.format(pre=PREFIX) + link.attrib['href']
 
-            redirectResponse = requests.get(redirectLink)
-            redirectRoot = etree.fromstring(redirectResponse.content)
-            redirectName = redirectRoot.xpath('//*[@class="download"]')[0] #Only PDF Link has this class
-
-            pdfLink = BASE_URL.format(pre=PREFIX) + redirectName.attrib['href']
-            yield num, pdfLink
+                redirectResponse = requests.get(redirectLink)
+                redirectRoot = etree.fromstring(redirectResponse.content)
+                
+                # Look for download links with PDF files
+                pdf_links = redirectRoot.xpath('//a[@class="download"]')
+                
+                if pdf_links:
+                    for pdf_link in pdf_links:
+                        href = pdf_link.attrib['href']
+                        # Check if it's a relative or absolute URL
+                        if href.startswith('/'):
+                            pdfLink = BASE_URL.format(pre=PREFIX) + href
+                        elif href.startswith('http'):
+                            pdfLink = href
+                        else:
+                            pdfLink = BASE_URL.format(pre=PREFIX) + '/' + href
+                        #print(num)
+                        yield num, pdfLink
+                        break  # Just use the first PDF link found
 
 #Default Text Extractor for BRE
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
