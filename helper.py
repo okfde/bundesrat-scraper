@@ -33,7 +33,13 @@ def get_filename_url(url):
     # Add a unique identifier based on the URL to avoid collisions
     import hashlib
     url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:8]
-    filename = f"{filename}_{url_hash}"
+    
+    # Ensure filename has .pdf extension for PDF files
+    base, ext = os.path.splitext(filename)
+    if url.lower().endswith('.pdf') and ext.lower() != '.pdf':
+        filename = f"{base}_{url_hash}.pdf"
+    else:
+        filename = f"{filename}_{url_hash}{ext}"
     
     # Ensure the filename is safe for the filesystem
     filename = filename.replace('/', '_').replace('\\', '_').replace(':', '_')
