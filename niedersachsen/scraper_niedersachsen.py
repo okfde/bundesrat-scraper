@@ -2,7 +2,7 @@ import re
 import pdb
 
 import requests
-from lxml import html as etree
+from lxml import html
 
 import pdfcutter
 
@@ -15,10 +15,10 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://niedersachsen.de/startseite/politik_staat/bundesrat/abstimmungsverhalten_niedersachsen_im_bundesrat/abstimmungsverhalten-niedersachsens-im-bundesrat-157696.html'
+INDEX_URL = 'https://www.niedersachsen.de/politik_staat/bundesrat/abstimmungsverhalten_niedersachsen_im_bundesrat/abstimmungsverhalten-niedersachsen-im-bundesrat-157696.html'
 
 NUM_RE = re.compile(r'(\d+)\. .*Sitzung des Bundesrates') #991 has "(Sonder-) Sitzung in name"
-LINK_TEXT_RE = re.compile(r'Abstimmungsverhalten und Beschlüsse vom.*') #In 2020 added "Abstimmungsverhalten und Beschlüsse des Bundesrates durch seine Europakammer am 21. April 2020" that I dont want, so added "vom" to regex
+LINK_TEXT_RE = re.compile(r'Abstimm(?:ung)?sverhalten und Beschlüsse vom.*') #In 2020 added "Abstimmungsverhalten und Beschlüsse des Bundesrates durch seine Europakammer am 21. April 2020" that I dont want, so added "vom" to regex
 SENAT_TEXT_RE = re.compile(r'^Haltung NI\s*:\s*(.*)')
 BR_TEXT_RE = re.compile(r'^Ergebnis BR\s*:\s*(.*)')
 
@@ -28,13 +28,106 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
     def _get_pdf_urls(self):
         #Normal parsing NS Site is to hard because HTML is not formatted consistently
         response = requests.get(INDEX_URL)
-        root = etree.fromstring(response.content)
-        lines = re.split('\n|<br>', response.text)# For 2020, Niedersachsen doesn't break lines anymore between Sitzungen, but rather uses only <br>. Split on both
-        meeting_nums = [NUM_RE.search(l).group(1) for l in lines if NUM_RE.search(l)]
-        pdf_links = [a.attrib['href'] for a in root.xpath('//a') if a.text != None and LINK_TEXT_RE.search(a.text)]
-        for (num, link) in zip(meeting_nums, pdf_links):
-            print(num)
-            yield int(num), link
+        content = response.text
+        
+        # Use a more precise approach to match session numbers with their links
+        # Look for patterns like: "1026. Sitzung des Bundesrates\n[Abstimmungsverhalten und Beschlüsse vom 28. Oktober 2022](https://www.niedersachsen.de/download/189523)"
+        
+        # First, find all session blocks in the content
+        session_blocks = re.findall(r'(\d+)\.\s+Sitzung\s+des\s+Bundesrates.*?(?=\d+\.\s+Sitzung|$)', content, re.DOTALL)
+        
+        # For each session block, extract the session number and any download links
+        result_dict = {}
+        
+        # Process the entire content to find session numbers and their corresponding links
+        pattern = r'(\d+)\.\s+Sitzung\s+des\s+Bundesrates.*?\[.*?\]\((https://www\.niedersachsen\.de/download/\d+)\)'
+        for match in re.finditer(pattern, content, re.DOTALL):
+            session_num = int(match.group(1))
+            link = match.group(2)
+            print(f"Found direct match: Session {session_num}, URL: {link}")
+            result_dict[session_num] = link
+        
+        # If the above approach doesn't find enough matches, try a more detailed parsing
+        if len(result_dict) < 5:  # Arbitrary threshold to check if we found enough matches
+            print("Not enough matches found, trying detailed parsing...")
+            
+            # Parse the HTML content
+            root = html.fromstring(response.content)
+            
+            # Find all text nodes containing session numbers
+            session_elements = []
+            for element in root.xpath('//*[contains(text(), "Sitzung des Bundesrates")]'):
+                text = element.text_content()
+                match = re.search(r'(\d+)\.\s+Sitzung\s+des\s+Bundesrates', text)
+                if match:
+                    session_num = int(match.group(1))
+                    session_elements.append((session_num, element))
+            
+            # For each session element, find the next download link
+            for session_num, element in session_elements:
+                # Look for download links in the next siblings or children
+                next_links = []
+                
+                # Check if there's a link in the current element or its descendants
+                for link in element.xpath('.//a[contains(@href, "download")]'):
+                    href = link.get('href', '')
+                    if 'niedersachsen.de/download' in href:
+                        next_links.append(href)
+                
+                # If no links found in descendants, look at following siblings
+                if not next_links:
+                    # Get the parent element to look at its children
+                    parent = element.getparent()
+                    if parent is not None:
+                        # Find the index of the current element among its siblings
+                        siblings = parent.getchildren()
+                        try:
+                            index = siblings.index(element)
+                            # Look at the next siblings
+                            for sibling in siblings[index+1:]:
+                                for link in sibling.xpath('.//a[contains(@href, "download")]'):
+                                    href = link.get('href', '')
+                                    if 'niedersachsen.de/download' in href:
+                                        next_links.append(href)
+                                if next_links:
+                                    break
+                        except ValueError:
+                            pass
+                
+                # Use the first link found (if any)
+                if next_links:
+                    print(f"Found link for session {session_num}: {next_links[0]}")
+                    result_dict[session_num] = next_links[0]
+        
+        # As a last resort, try to extract links directly from the markdown-style format
+        if len(result_dict) < 5:
+            print("Still not enough matches, trying direct markdown extraction...")
+            
+            # Find all session numbers
+            session_nums = []
+            for match in re.finditer(r'(\d+)\.\s+Sitzung\s+des\s+Bundesrates', content):
+                session_nums.append(int(match.group(1)))
+            
+            # Find all download links in markdown format: [text](url)
+            links = re.findall(r'\[.*?\]\((https://www\.niedersachsen\.de/download/\d+)\)', content)
+            
+            # If we have the same number of session numbers and links, assume they match in order
+            if len(session_nums) > 0 and len(links) > 0 and abs(len(session_nums) - len(links)) <= 5:
+                print(f"Found {len(session_nums)} session numbers and {len(links)} links")
+                
+                # Create a mapping of session numbers to links
+                # We'll use the minimum length to avoid index errors
+                for i in range(min(len(session_nums), len(links))):
+                    if session_nums[i] not in result_dict:
+                        print(f"Matching session {session_nums[i]} with link {links[i]}")
+                        result_dict[session_nums[i]] = links[i]
+        
+        print(f"Total matches found: {len(result_dict)}")
+        
+        # Return the results
+        for session_num, url in sorted(result_dict.items(), reverse=True):
+            print(f"Yielding: {session_num} -> {url}")
+            yield session_num, url
 
 # For Niedersachsen 970, All two digit Numbers of TOP are cut into two lines. Handle here for 10. to 97.
 class TOPPositionFinder970MultiDigitNumber(PDFTextExtractor.DefaultTOPPositionFinder):
