@@ -2,7 +2,7 @@ import re
 import pdb
 
 import requests
-from lxml import html as etree
+from lxml import html
 
 import pdfcutter
 
@@ -15,42 +15,92 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://staatskanzlei.hessen.de/berlin-europa/hessen-berlin/bundesrat/abstimmungsverhalten-und-ergebnislisten'
+INDEX_URL = 'https://staatskanzlei.hessen.de/Berlin-Europa-und-die-Welt/Hessen-in-Berlin/Hessen-in-Berlin/Bundesrat'
 
 BASE_URL='http://suche.transparenz.hamburg.de/'
 NUM_RE = re.compile(r'.*[/_](\d+)[.]?_.*\.pdf') #Link from 965 completely different than all other links
+NEW_NUM_RE = re.compile(r'.*in_der_(\d+)[\.-].*\.pdf') # New format: abstimmungsverhalten_hessens_in_der_1050-sitzung_des_bundesrates_.pdf
 BR_TEXT_RE = re.compile(r'^Ergebnis BR:')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
-        # Current Session on different page then all the rest
-
-        response = requests.get(INDEX_URL)
-        root = etree.fromstring(response.content)
-        yearFields = root.xpath('/html/body/div[1]/div[3]/section/div[1]/div/div/div/div[3]/div/div/div/div[2]/div/div/span/div[3]/div/div/div/a') #Get Links to year sections
-        for yearField in yearFields:
-            yearLink = yearField.attrib['href']
-            yearResponse = requests.get(yearLink, headers={'User-Agent': '-'}) #Without User-Agent, get 403 Forbidden for 2020 Page (but not for 2018/2019)
-            yearRoot = etree.fromstring(yearResponse.content)
-            if "2018" in yearLink: #Extra redirect in this year
-
-                sessionInYearFields = yearRoot.xpath('/html/body/div[1]/div[3]/section/div[1]/div/div/div/div[2]/div/div/div/div[2]/div/div/span/div[3]/div/div/div/a') #All Sessions in given year
-                for sessionField in sessionInYearFields:
-                    redirectLink = sessionField.attrib['href'] #Link to Website, where I can find actual PDF Link
-                    redirectResponse = requests.get(redirectLink)
-                    redirectRoot = etree.fromstring(redirectResponse.content)
-                    pdfField = redirectRoot.xpath('/html/body/div[1]/div[3]/section/div[1]/div/div/div/div/div/div/article/div[1]/ul/li/div/div/span/a')[0] #Exactly one field with this xpath
-                    sessionPDFLink = pdfField.attrib['href']
-                    num = int(NUM_RE.search(sessionPDFLink).group(1))
-                    yield int(num), sessionPDFLink
-            else: #2019- no second redirect anymore
-                sessionInYearFields = yearRoot.xpath('/html/body/div[1]/div[3]/section/div[1]/div/div/div/div/div/div/article/div[1]/div[2]/div/div/div/div[2]/div/div/div/span/a') #All Sessions in given year (2019-)
-                for sessionField in sessionInYearFields:
-                    sessionPDFLink = sessionField.attrib['href']
-                    num = int(NUM_RE.search(sessionPDFLink).group(1))
-                    yield int(num), sessionPDFLink
+        # Get main page
+        response = requests.get(INDEX_URL, headers={'User-Agent': 'Mozilla/5.0'})
+        # Use html.fromstring instead of etree.fromstring
+        root = html.fromstring(response.content)
+        
+        # Find all PDF links directly on the main page
+        # Using the class attribute we observed in the HTML
+        pdf_links = root.xpath('//a[contains(@class, "link--download") and contains(@href, ".pdf")]')
+        
+        for pdf_link in pdf_links:
+            pdf_url = pdf_link.attrib['href']
+            
+            # Make sure we have the full URL
+            if not pdf_url.startswith('http'):
+                if pdf_url.startswith('/'):
+                    pdf_url = 'https://staatskanzlei.hessen.de' + pdf_url
+                else:
+                    pdf_url = 'https://staatskanzlei.hessen.de/' + pdf_url
+            
+            # Extract session number from the PDF URL
+            num_match = NEW_NUM_RE.search(pdf_url)
+            if num_match:
+                num = int(num_match.group(1))
+                yield num, pdf_url
+            else:
+                # Try the old pattern as fallback
+                num_match = NUM_RE.search(pdf_url)
+                if num_match:
+                    num = int(num_match.group(1))
+                    yield num, pdf_url
+        
+        # If we didn't find any PDFs directly, try to find links to year pages
+        if not pdf_links:
+            # Find links to year pages
+            year_links = root.xpath('//a[contains(@href, "Abstimmung-Bundesrat") or contains(text(), "Abstimmung Bundesrat")]')
+            
+            for year_link in year_links:
+                year_url = year_link.attrib['href']
+                
+                # Make sure we have the full URL
+                if not year_url.startswith('http'):
+                    if year_url.startswith('/'):
+                        year_url = 'https://staatskanzlei.hessen.de' + year_url
+                    else:
+                        year_url = 'https://staatskanzlei.hessen.de/' + year_url
+                
+                # Get the year page
+                year_response = requests.get(year_url, headers={'User-Agent': 'Mozilla/5.0'})
+                # Use html.fromstring instead of etree.fromstring
+                year_root = html.fromstring(year_response.content)
+                
+                # Find all PDF links on the year page
+                year_pdf_links = year_root.xpath('//a[contains(@class, "link--download") and contains(@href, ".pdf")]')
+                
+                for pdf_link in year_pdf_links:
+                    pdf_url = pdf_link.attrib['href']
+                    
+                    # Make sure we have the full URL
+                    if not pdf_url.startswith('http'):
+                        if pdf_url.startswith('/'):
+                            pdf_url = 'https://staatskanzlei.hessen.de' + pdf_url
+                        else:
+                            pdf_url = 'https://staatskanzlei.hessen.de/' + pdf_url
+                    
+                    # Extract session number from the PDF URL
+                    num_match = NEW_NUM_RE.search(pdf_url)
+                    if num_match:
+                        num = int(num_match.group(1))
+                        yield num, pdf_url
+                    else:
+                        # Try the old pattern as fallback
+                        num_match = NUM_RE.search(pdf_url)
+                        if num_match:
+                            num = int(num_match.group(1))
+                            yield num, pdf_url
 
 #For HE 985, Subparts are on next line below actual number of TOP. Therefore, first line of texts gets cut away or first line next TOP is added. Add Extra Offsets to fix this
 class VerticalSenatsAndBRTextExtractor985(PDFTextExtractor.VerticalSenatsAndBRTextExtractor):
@@ -162,4 +212,3 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                 senatLeft = 409,
                 brLeft = 800,
          )
-
