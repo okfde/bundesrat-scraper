@@ -161,7 +161,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     def _getRightTOPPositionFinder(self, top):
         if self.sessionNumber == 985: #In 985, subpart always on newline to Number. DefaultTOPPositionFinder can handle this
             return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
-        formatTOPsWithSubpart="{number} {subpart}." #e.g. HE 965 13. b) is "13 b." - Default
+        formatTOPsWithSubpart="{number}\s{subpart}." #e.g. HE 965 13. b) is "13 b." - Default
         if self.sessionNumber == 965:
             formatTOPsWithSubpart="{number} {subpart}." #e.g. HE 965 13. b) is "13 b."
             if top == "14. a)":
@@ -173,6 +173,10 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         elif (self.sessionNumber == 972):
             return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, TOPRight=100, formatSubpartTOP=formatTOPsWithSubpart) #Else match 18. with "18. Oktober..." of TOP 13a
         elif (self.sessionNumber == 992) and (top in ["30.", "31.", "55."]):# They forgot point after number there but e.g. 31 is ubiquious ("Drucksache 331/20" in TOP 2.)
+            formatNumberOnlyTOP="{number}"
+            rightBorderTOP = 237 # Taken from pdftohtml -xml output
+            return CustomTOPFormatPositionFinderNoPrefix(self.cutter, TOPRight=rightBorderTOP, formatNumberOnlyTOP=formatNumberOnlyTOP, formatSubpartTOP=formatTOPsWithSubpart) #Subpart format not necessary , but more consistent like this
+        elif self.sessionNumber == 1051 and top in ["2.", "3.", "4.", "5.", "6."] :# They forgot point after number there but e.g. 31 is ubiquious ("Drucksache 331/20" in TOP 2.)
             formatNumberOnlyTOP="{number}"
             rightBorderTOP = 237 # Taken from pdftohtml -xml output
             return CustomTOPFormatPositionFinderNoPrefix(self.cutter, TOPRight=rightBorderTOP, formatNumberOnlyTOP=formatNumberOnlyTOP, formatSubpartTOP=formatTOPsWithSubpart) #Subpart format not necessary , but more consistent like this
