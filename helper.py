@@ -40,7 +40,8 @@ def get_filename_url(url):
     
     # Ensure filename has .pdf extension for PDF files
     base, ext = os.path.splitext(filename)
-    if url.lower().endswith('.pdf') and ext.lower() != '.pdf':
+    # Always add .pdf extension for Bundesrat documents (niedersachsen.de/download URLs)
+    if ('niedersachsen.de/download' in url and ext.lower() != '.pdf') or (url.lower().endswith('.pdf') and ext.lower() != '.pdf'):
         filename = f"{base}_{url_hash}.pdf"
     else:
         filename = f"{filename}_{url_hash}{ext}"
