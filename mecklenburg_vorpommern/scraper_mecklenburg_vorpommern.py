@@ -2,7 +2,7 @@ import re
 import pdb
 
 import requests
-from lxml import html as etree
+from lxml import html
 
 import pdfcutter
 
@@ -15,41 +15,38 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://www.regierung-mv.de/Landesregierung/stk/Landesvertretung/Unsere-Aufgaben/Abstimmung/'
+INDEX_URL = 'https://www.regierung-mv.de/Landesregierung/wkm/Landesvertretung/Unsere-Aufgaben/Abstimmung/'
 BASE_URL='https://www.regierung-mv.de/'
-NUM_RE = re.compile(r'r (\d+)\.[  ]?Sitzung') #Yes, Session 992 uses a different (unicode) space then all of the other Sessions
+NUM_RE = re.compile(r'(\d+)\.\s*Sitzung') #Updated regex to match new format
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
-        response = requests.get(INDEX_URL, headers={'User-Agent': '-'}) #Without User-Agent don't receive any information
-        root = etree.fromstring(response.content)
+        response = requests.get(INDEX_URL, headers={'User-Agent': 'Mozilla/5.0'}) #Updated User-Agent
+        root = html.fromstring(response.content)
 
-        names = root.xpath('//a')# Again, more clever xpaths just don't get recognized
-        for name in names:
-            if ('title' not in name.attrib) or ("Abstimmungsverhalten" not in name.attrib['title']) or ('href' not in name.attrib): #Not a PDF Link
+        # Find all links with PDF files
+        pdf_links = root.xpath('//a[contains(@href, ".pdf")]')
+        
+        for link in pdf_links:
+            href = link.get('href')
+            if not href:
                 continue
-            link = name.attrib['href']
-            title = name.attrib['title']
-            #For the oldest sessions, the actual session number is not part of a-Title. Therefore, hard-code it
-            if "2. März 2018" in title:
-                num = 965
-            elif "2. Februar 2018" in title:
-                num = 964
-            elif "15. Dezember 2017" in title:
-                num = 963
-            elif "24. November 2017" in title:
-                num = 962
-            elif "3. November 2017" in title:
-                num = 961
-            else:
-                num = int(NUM_RE.search(title).group(1)) #title formatmore consistent than link names
-            if "http" in link : #already full path in a tag (e.g. BA 951), else append to absolute path
-               realLink = link
-            else:
-               realLink = BASE_URL + link 
-            yield num, realLink
+                
+            # Get the text content of the link or its parent element
+            link_text = (link.text_content() or '').strip()
+            
+            # Try to extract session number from the link text
+            match = NUM_RE.search(link_text)
+            if match:
+                num_str = match.group(1)
+                try:
+                    num = int(num_str)
+                    realLink = href if href.startswith('http') else BASE_URL + href
+                    yield num, realLink
+                except ValueError:
+                    continue
 
 #Senats/BR Texts and TOPS in BA  all have same formatting
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
@@ -87,6 +84,3 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                 senatLeft = senatLeft,
                 brLeft = brLeft,
          )
-
-
-
