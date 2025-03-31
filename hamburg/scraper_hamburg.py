@@ -157,19 +157,10 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         #TODO Cut Footer
         page_heading = 73 #Bottom of heading on each page
         page_footer = 1195 #Upper of footer on each page
-        if not selectionCurrentTOP: #TOP not in PDF -> empty texts
-            return "", ""
+#        if not selectionCurrentTOP: #TOP not in PDF -> empty texts
+#            return "", ""
 
         #As e.g. HA 985 TOPs not consecutive (After TOP 4 directly TOP 7), one has to find next direct TOP which is lower bound for text
-        selectionsNextPDFTOPs = self.cutter.all().filter(
-            doc_top__gt  = selectionCurrentTOP.doc_top,
-            left__gte = selectionCurrentTOP.left - 10,
-            right__lte = selectionCurrentTOP.right + 30, #Offset for subpart #TODO 30 or 100?
-            top__gte=page_heading, #Ignore Page Footer
-            bottom__lt=page_footer, #Else, 983 21a matches "Ergebnisse.doc" Footer and not TOP 21b
-        )
-        selectionDirectNextTOP = self._getHighestSelectionNotEmpty(selectionsNextPDFTOPs)# Could be empty, but will be handeled
-
         #Get indented Text, Senats text is everything intended before next TOP
         TOPRightIndented = self.cutter.all().filter(
             doc_top__gte = selectionCurrentTOP.doc_top -10, #Start with line where TOP stands
@@ -178,8 +169,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             bottom__lt=page_footer, #Ignore Page Footer
         )
 
-        if selectionDirectNextTOP: #Next TOP as lower bound
-            TOPRightIndented = TOPRightIndented.above(selectionDirectNextTOP)
+        if selectionNextTOP: #Next TOP as lower bound
+            TOPRightIndented = TOPRightIndented.above(selectionNextTOP)
 
         #dVis.showCutter(TOPRightIndented)
         senats_text = helper.cleanTextOrderedByDocTop(TOPRightIndented)  #Else, pdfcutter orders by top, not by doc_top, making multi-site selection strangely sorted
@@ -214,7 +205,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             formatTOPsWithSubpart="{number}{subpart}" #e.g. HA 985 9. a) is "TOP 9a" (Has to start with TOP because I check for prefix) TODO This [] is hacky, because . and ) get escaped by me in DefaultTOPPositionFinder , but [],* doesn't and I abuse this.
             return CustomTOPFormatPositionFinderNoPrefix(self.cutter, formatNumberOnlyTOP= formatTOPsOnlyNumber, formatSubpartTOP= formatTOPsWithSubpart)
 
-        return CustomTOPFormatPositionFinderNoPrefix(self.cutter) #TODO Go on here
+        return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter) #TODO Go on here
 
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
