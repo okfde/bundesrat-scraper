@@ -326,6 +326,8 @@ class NSTextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
              return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}.{subpart}")
         elif self.sessionNumber == 1041:
              return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}.{subpart})")
+        elif self.sessionNumber in [1037,1035,1033,1030]:
+             return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}.{subpart}")
 
         return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
 
