@@ -189,12 +189,12 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         senats_text = senats_text.clean_text()
     #    print("next top", next_top)
     #    print("senats_text", senats_text)
-        if senats_text != "":
+        if senats_text != "" and SENAT_TEXT_RE.search(senats_text): #Missing for 1048 TOP 10
             senats_text = SENAT_TEXT_RE.search(senats_text).group(1)
 
         br_text = br_text.clean_text()
     #    print("br_text", br_text)
-        if br_text != "":
+        if br_text != "" and BR_TEXT_RE.search(br_text): #Missing for 1048 TOP 10
             br_text = BR_TEXT_RE.search(br_text).group(1)
         if not senats_text.strip():
             print('empty')
@@ -284,6 +284,10 @@ class NSTextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             return TOPPositionFinder985TOP18b(self.cutter)
         elif self.sessionNumber == 992:
             return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter, TOPRight = 140) #"3. Juli" in Header disrupts TOP 3. Finder
+        elif self.sessionNumber == 1047:
+             return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}.{subpart}")
+        elif self.sessionNumber == 1041:
+             return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}.{subpart})")
 
         return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
 
