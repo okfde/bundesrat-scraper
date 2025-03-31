@@ -33,6 +33,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         meeting_nums = [NUM_RE.search(l).group(1) for l in lines if NUM_RE.search(l)]
         pdf_links = [a.attrib['href'] for a in root.xpath('//a') if a.text != None and LINK_TEXT_RE.search(a.text)]
         for (num, link) in zip(meeting_nums, pdf_links):
+            print(num)
             yield int(num), link
 
 # For Niedersachsen 970, All two digit Numbers of TOP are cut into two lines. Handle here for 10. to 97.
