@@ -17,7 +17,7 @@ import MainBoilerPlate
 
 INDEX_URL = 'https://www.regierung-mv.de/Landesregierung/wkm/Landesvertretung/Unsere-Aufgaben/Abstimmung/'
 BASE_URL='https://www.regierung-mv.de/'
-NUM_RE = re.compile(r'(\d+)\.\s*Sitzung') #Updated regex to match new format
+NUM_RE = re.compile(r'([0-9.]+)\.\s*Sitzung') #Updated regex to match new format, 1.050 as well as 1051 happens
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -40,7 +40,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
             # Try to extract session number from the link text
             match = NUM_RE.search(link_text)
             if match:
-                num_str = match.group(1)
+                num_str = match.group(1).replace(".", "")
                 try:
                     num = int(num_str)
                     realLink = href if href.startswith('http') else BASE_URL + href
