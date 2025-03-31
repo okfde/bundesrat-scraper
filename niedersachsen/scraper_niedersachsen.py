@@ -196,6 +196,9 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
     #    print("br_text", br_text)
         if br_text != "":
             br_text = BR_TEXT_RE.search(br_text).group(1)
+        if not senats_text.strip():
+            print('empty')
+
         return senats_text, br_text
 
 #Session 988 for NS doesn't have all TOPs in it, skips the ones not discussed -> currentTOP/nextTOP can be empty! Have to compute next TOP out of current TOP alone as bottom border for texts
