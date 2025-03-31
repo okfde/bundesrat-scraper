@@ -19,8 +19,8 @@ INDEX_URL = 'https://www.niedersachsen.de/politik_staat/bundesrat/abstimmungsver
 
 NUM_RE = re.compile(r'(\d+)\. .*Sitzung des Bundesrates') #991 has "(Sonder-) Sitzung in name"
 LINK_TEXT_RE = re.compile(r'Abstimm(?:ung)?sverhalten und Beschlüsse vom.*') #In 2020 added "Abstimmungsverhalten und Beschlüsse des Bundesrates durch seine Europakammer am 21. April 2020" that I dont want, so added "vom" to regex
-SENAT_TEXT_RE = re.compile(r'^Haltung NI\s*:\s*(.*)')
-BR_TEXT_RE = re.compile(r'^Ergebnis BR\s*:\s*(.*)')
+SENAT_TEXT_RE = re.compile(r'^Haltung\sNI\s*:\s*(.*)')
+BR_TEXT_RE = re.compile(r'^Ergebnis\sBR\s*:\s*(.*)')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -215,14 +215,14 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
         page_heading = 73 #Bottom of heading on each page
         page_footer = 1260 #Upper of footer on each page
-        senats = self.cutter.filter(auto_regex='^Haltung NI')
+        senats = self.cutter.filter(auto_regex='^Haltung\sNI')
         senats = senats.below(selectionCurrentTOP)
         if selectionNextTOP:
             senats = senats.above(selectionNextTOP)
 
         #INFO Space relevant because without Rules broke because of "Ergebnisse" in NS 970 70a
         #INFO But can't filter 'Ergebnis BR' directly, because these two words are sometimes in different chunks
-        ergebnis_br = self.cutter.filter(auto_regex='^Ergebnis [^kz]').below(selectionCurrentTOP) #976 26 "Ergebnis keine ..." makes problems, so forbid k after Ergebnis Regex + 976 46. "Ergebnis Zustimmung" makes problems as well
+        ergebnis_br = self.cutter.filter(auto_regex='^Ergebnis\s[^kz]').below(selectionCurrentTOP) #976 26 "Ergebnis keine ..." makes problems, so forbid k after Ergebnis Regex + 976 46. "Ergebnis Zustimmung" makes problems as well
 
 
         if selectionNextTOP:
