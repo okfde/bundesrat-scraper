@@ -56,9 +56,7 @@ else:
 
 for session in sessions:
     num = session['number']
-#    if str(num) in session_tops: TODO
-#        continue
-    if num > 1037:
+    if str(num) in session_tops:
         continue
     print('\nLoading tops of: %s' % num)
 
