@@ -53,9 +53,17 @@ else:
 
 # In[8]:
 
+# Import the IGNORE_SESSIONS list from the scraper module
+IGNORE_SESSIONS = scraper_nordrhein_westfalen.IGNORE_SESSIONS
 
 for session in sessions:
     num = session['number']
+    
+    # Skip sessions in the IGNORE_SESSIONS list
+    if int(num) in IGNORE_SESSIONS:
+        print(f"Skipping session {num} (in IGNORE_SESSIONS list)")
+        continue
+        
     if str(num) in session_tops:
         continue
     print('\nLoading tops of: %s' % num)
@@ -72,7 +80,3 @@ print('Total sessions:', len(session_tops))
 
 
 # In[ ]:
-
-
-
-

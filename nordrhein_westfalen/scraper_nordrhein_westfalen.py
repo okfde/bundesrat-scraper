@@ -15,7 +15,14 @@ INDEX_URL = 'https://mbeim.nrw/nrw-beim-bund/nordrhein-westfalen-im-bundesrat/ab
 BASE_URL = 'https://mbeim.nrw/'
 NUM_RE = re.compile(r'(\d+)-sitzung')
 SESSION_URL_FORMAT_NEW = 'https://mbeim.nrw/{}-sitzung-des-bundesrates-abstimmverhalten-des-landes-nordrhein-westfalen'
-SESSION_URL_FORMAT_OLD = 'https://mbeim.nrw/{}-sitzung-des-bundesrates-am-24-november-2023'
+
+# Dictionary of sessions that need special handling
+SPECIAL_SESSIONS = {
+    1038: 'https://mbeim.nrw/1038-sitzung-des-bundesrates-am-24-november-2023',
+}
+
+# Sessions to ignore (e.g., due to 403 errors or other issues)
+IGNORE_SESSIONS = [1032, 1039]
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -35,9 +42,13 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
             if match:
                 num = int(match.group(1))
                 
-                # Use different URL formats based on session number
-                if num == 1038:
-                    session_url = SESSION_URL_FORMAT_OLD.format(num)
+                # Skip sessions that should be ignored
+                if num in IGNORE_SESSIONS:
+                    continue
+                
+                # Use special URLs for certain sessions
+                if num in SPECIAL_SESSIONS:
+                    session_url = SPECIAL_SESSIONS[num]
                 else:
                     session_url = SESSION_URL_FORMAT_NEW.format(num)
                     
@@ -49,7 +60,10 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
 
     #Store WebsiteTable Root (HTML) instead of cutter (PDF)
     def __init__(self, filename, session):
-        # Check if the filename is a local file (cache) or a URL
+        self.session = session
+        self.sessionNumber = int(self.session['number'])
+        
+        # For HTML content
         if filename.startswith('http'):
             # It's a URL, fetch content directly
             response = requests.get(filename)
@@ -63,8 +77,6 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
 
         # The session content is now in a different structure
         self.websiteRoot = websiteRoot
-        self.session = session
-        self.sessionNumber = int(self.session['number'])
         
         # Store all text content for TOP lookup
         self.content_text = self.websiteRoot.xpath('//body')[0].text_content()
@@ -155,7 +167,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             top_cell = cells[0]
             top_text = top_cell.text_content().strip()
             
-            # If this is a main TOP (e.g., "8.")
+            # If this is a main TOP (no subpart)
             if not is_subpart and top_text == top_number + '.':
                 return row
                 
@@ -242,50 +254,102 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
             # For subparts, look for patterns like "a)" or "a) Text..."
             # Escape special characters in subpart
             safe_subpart = subpart.replace("(", "\\(").replace(")", "\\)")
+            
+            # Get the subpart letter without the parenthesis
+            subpart_letter = subpart[0] if subpart else ""
+            
+            # For subparts, we need to look for specific patterns
             patterns = [
-                f"{top_number}\\.\\s*{safe_subpart}",  # 8. a)
-                f"\\b{safe_subpart}\\b"  # Just a) as a word boundary
+                f"{top_number}\\.\\s*{safe_subpart}",  # Like "8. a)"
+                f"{top_number}\\.\\s*{subpart_letter}\\\\)",  # Like "8. b)"
+                f"\\b{safe_subpart}\\s",               # Like "a) "
+                f"\\b{subpart_letter}\\\\)\\s",          # Like "b) "
+                f"{top_number}{subpart_letter}\\\\)",    # Like "8b)"
+                f"{top_number}{subpart_letter}\\b",    # Like "8b"
+                f"\\b{subpart_letter}\\\\)\\s",          # Just "b) " as standalone
             ]
         
-        # Try to find the TOP content using the patterns
+        # Try each pattern
         for pattern in patterns:
-            # Find all matches of the pattern in the content
-            matches = re.finditer(pattern, self.content_text)
-            for match in matches:
-                # Get the position of the match
-                start_pos = match.start()
-                
-                # Extract a chunk of text around the match
-                # This is a heuristic approach - we take a reasonable amount of text
-                # that should contain the full TOP content
-                chunk_start = max(0, start_pos - 20)  # Some context before
-                
-                # For end position, find the next TOP or end of text
-                if nextTOP := self._findNextTOPPosition(start_pos):
-                    chunk_end = nextTOP
-                else:
-                    chunk_end = min(start_pos + 1000, len(self.content_text))  # Reasonable chunk size
-                
-                chunk = self.content_text[chunk_start:chunk_end]
-                
-                # For subparts, verify this is the correct subpart
-                if subpart:
-                    # For subparts like "a)", make sure we're not matching a different subpart
-                    # with the same letter in a different context
-                    if not re.search(f"\\b{safe_subpart}\\b", chunk[:100]):
-                        continue
+            try:
+                matches = list(re.finditer(pattern, self.content_text))
+                for match in matches:
+                    start_pos = match.start()
                     
-                    # For cases like "19 a)" where multiple subparts share the same main number,
-                    # check if the chunk contains the main number close to the subpart
-                    if not re.search(f"{top_number}\\..*?\\b{safe_subpart}\\b", chunk[:200]) and not re.search(f"\\b{safe_subpart}\\b.*?{top_number}\\.", chunk[:200]):
-                        # If main number isn't near the subpart, check if this is a standalone subpart
-                        # that follows the main TOP (like "19. a)" after "19.")
-                        prev_chunk = self.content_text[max(0, chunk_start - 500):chunk_start]
-                        if not re.search(f"{top_number}\\.", prev_chunk[-200:]):
+                    # Get a chunk of text around the match
+                    chunk_start = max(0, start_pos - 20)  # Some context before
+                    
+                    # Find the end of this TOP section
+                    # Look for the next TOP or subpart marker
+                    next_pos = None
+                    for next_pattern in [
+                        r"\d+\.\s+[A-Za-z]",  # Next main TOP
+                        r"\d+\.\s*[a-z]\)",   # Next TOP with subpart
+                        r"\bc\)\s",           # Next subpart (c)
+                        r"NRW:",              # NRW marker
+                    ]:
+                        next_matches = list(re.finditer(next_pattern, self.content_text[start_pos + len(match.group(0)):]))
+                        if next_matches:
+                            pos = start_pos + len(match.group(0)) + next_matches[0].start()
+                            if next_pos is None or pos < next_pos:
+                                next_pos = pos
+                    
+                    chunk_end = next_pos if next_pos else min(start_pos + 1000, len(self.content_text))
+                    chunk = self.content_text[chunk_start:chunk_end]
+                    
+                    # For debugging
+                    #print(f"Found potential match for {top_number} {subpart} with pattern {pattern}")
+                    
+                    # Verify this is the correct subpart for this TOP number
+                    # For subparts like "19 a)", check if the chunk or nearby text contains the TOP number
+                    if not re.search(f"{top_number}\\.", chunk) and not re.search(f"{top_number}{subpart_letter}", chunk):
+                        # If not found in the chunk, check nearby text
+                        nearby_text = self.content_text[max(0, chunk_start - 200):chunk_start]
+                        if not re.search(f"{top_number}\\.", nearby_text) and not re.search(f"{top_number}{subpart_letter}", nearby_text):
                             continue
+                    
+                    return chunk
+            except Exception as e:
+                print(f"Error with pattern {pattern}: {e}")
+                continue
+        
+        # If we still haven't found the content, try a more aggressive approach for "b)" subparts
+        # Sometimes "b)" appears without clear association to its TOP number
+        if subpart_letter == "b":
+            try:
+                # Look for standalone "b)" after an "a)" section
+                b_pattern = r"\bb\)\s"
+                b_matches = list(re.finditer(b_pattern, self.content_text))
                 
-                return chunk
-                
+                for b_match in b_matches:
+                    b_start = b_match.start()
+                    
+                    # Check if this "b)" is near the TOP number
+                    nearby_text = self.content_text[max(0, b_start - 200):b_start]
+                    if re.search(f"{top_number}\\.", nearby_text) or re.search(f"{top_number}a", nearby_text):
+                        # This "b)" is likely associated with our TOP number
+                        
+                        # Find the end of this section
+                        next_pos = None
+                        for next_pattern in [
+                            r"\d+\.\s+[A-Za-z]",  # Next main TOP
+                            r"\d+\.\s*[a-z]\)",   # Next TOP with subpart
+                            r"\bc\)\s",           # Next subpart (c)
+                            r"NRW:",              # NRW marker
+                        ]:
+                            next_matches = list(re.finditer(next_pattern, self.content_text[b_start + b_match.end():]))
+                            if next_matches:
+                                pos = b_start + b_match.end() + next_matches[0].start()
+                                if next_pos is None or pos < next_pos:
+                                    next_pos = pos
+                        
+                        chunk_end = next_pos if next_pos else min(b_start + 1000, len(self.content_text))
+                        chunk = self.content_text[max(0, b_start - 50):chunk_end]
+                        
+                        return chunk
+            except Exception as e:
+                print(f"Error with fallback approach: {e}")
+        
         return None
     
     def _findNextTOPPosition(self, current_pos):
