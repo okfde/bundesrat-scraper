@@ -38,10 +38,14 @@ def get_filename_url(url):
     import hashlib
     url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:8]
     
-    # Ensure filename has .pdf extension for PDF files
+    # Determine file extension based on URL and content type
     base, ext = os.path.splitext(filename)
-    # Always add .pdf extension for Bundesrat documents (niedersachsen.de/download URLs)
-    if ('niedersachsen.de/download' in url and ext.lower() != '.pdf') or (url.lower().endswith('.pdf') and ext.lower() != '.pdf'):
+    
+    # Check if URL contains specific patterns to determine file type
+    if 'abstimmverhalten-des-landes-nordrhein-westfalen' in url:
+        # This is an HTML page for Nordrhein-Westfalen
+        filename = f"{base}_{url_hash}.html"
+    elif ('niedersachsen.de/download' in url and ext.lower() != '.pdf') or (url.lower().endswith('.pdf') and ext.lower() != '.pdf'):
         filename = f"{base}_{url_hash}.pdf"
     else:
         filename = f"{filename}_{url_hash}{ext}"
