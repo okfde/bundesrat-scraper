@@ -243,30 +243,30 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     
     def _findTOPContent(self, top_number, subpart, full_top):
         """Find content for a TOP using text patterns"""
+        # Get the subpart letter without the parenthesis (define it early to avoid UnboundLocalError)
+        subpart_letter = subpart[0] if subpart else ""
+        
         # For main TOPs (no subpart)
         if not subpart:
             # Look for patterns like "TOP: 1." or just the TOP number at the beginning of a line
             patterns = [
-                f"{top_number}\\.",  # Just the number with dot
-                f"TOP\\s*{top_number}\\."  # TOP: number.
+                f"{top_number}.",  # Just the number with dot
+                f"TOP\s*{top_number}."  # TOP: number.
             ]
         else:
             # For subparts, look for patterns like "a)" or "a) Text..."
             # Escape special characters in subpart
             safe_subpart = subpart.replace("(", "\\(").replace(")", "\\)")
             
-            # Get the subpart letter without the parenthesis
-            subpart_letter = subpart[0] if subpart else ""
-            
             # For subparts, we need to look for specific patterns
             patterns = [
-                f"{top_number}\\.\\s*{safe_subpart}",  # Like "8. a)"
-                f"{top_number}\\.\\s*{subpart_letter}\\\\)",  # Like "8. b)"
-                f"\\b{safe_subpart}\\s",               # Like "a) "
-                f"\\b{subpart_letter}\\\\)\\s",          # Like "b) "
-                f"{top_number}{subpart_letter}\\\\)",    # Like "8b)"
-                f"{top_number}{subpart_letter}\\b",    # Like "8b"
-                f"\\b{subpart_letter}\\\\)\\s",          # Just "b) " as standalone
+                f"{top_number}.\s*{safe_subpart}",  # Like "8. a)"
+                f"{top_number}.\s*{subpart_letter})",  # Like "8. b)"
+                f"\b{safe_subpart}\s",               # Like "a) "
+                f"\b{subpart_letter})\s",          # Like "b) "
+                f"{top_number}{subpart_letter})",    # Like "8b)"
+                f"{top_number}{subpart_letter}\b",    # Like "8b"
+                f"\b{subpart_letter})\s",          # Just "b) " as standalone
             ]
         
         # Try each pattern
@@ -302,10 +302,10 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                     
                     # Verify this is the correct subpart for this TOP number
                     # For subparts like "19 a)", check if the chunk or nearby text contains the TOP number
-                    if not re.search(f"{top_number}\\.", chunk) and not re.search(f"{top_number}{subpart_letter}", chunk):
+                    if not re.search(f"{top_number}.", chunk) and not re.search(f"{top_number}{subpart_letter}", chunk):
                         # If not found in the chunk, check nearby text
                         nearby_text = self.content_text[max(0, chunk_start - 200):chunk_start]
-                        if not re.search(f"{top_number}\\.", nearby_text) and not re.search(f"{top_number}{subpart_letter}", nearby_text):
+                        if not re.search(f"{top_number}.", nearby_text) and not re.search(f"{top_number}{subpart_letter}", nearby_text):
                             continue
                     
                     return chunk
@@ -326,7 +326,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                     
                     # Check if this "b)" is near the TOP number
                     nearby_text = self.content_text[max(0, b_start - 200):b_start]
-                    if re.search(f"{top_number}\\.", nearby_text) or re.search(f"{top_number}a", nearby_text):
+                    if re.search(f"{top_number}.", nearby_text) or re.search(f"{top_number}a", nearby_text):
                         # This "b)" is likely associated with our TOP number
                         
                         # Find the end of this section
@@ -384,13 +384,13 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         
         # For subparts, we need to look for specific patterns
         patterns = [
-            f"{top_number}\\.\\s*{safe_subpart}",  # Like "8. a)"
-            f"{top_number}\\.\\s*{subpart_letter}\\\\)",  # Like "8. b)"
-            f"\\b{safe_subpart}\\s",               # Like "a) "
-            f"\\b{subpart_letter}\\\\)\\s",          # Like "b) "
-            f"{top_number}{subpart_letter}\\\\)",    # Like "8b)"
-            f"{top_number}{subpart_letter}\\b",    # Like "8b"
-            f"\\b{subpart_letter}\\\\)\\s",          # Just "b) " as standalone
+            f"{top_number}.\s*{safe_subpart}",  # Like "8. a)"
+            f"{top_number}.\s*{subpart_letter})",  # Like "8. b)"
+            f"\b{safe_subpart}\s",               # Like "a) "
+            f"\b{subpart_letter})\s",          # Like "b) "
+            f"{top_number}{subpart_letter})",    # Like "8b)"
+            f"{top_number}{subpart_letter}\b",    # Like "8b"
+            f"\b{subpart_letter})\s",          # Just "b) " as standalone
         ]
         
         # Try each pattern
@@ -426,10 +426,10 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                     
                     # Verify this is the correct subpart for this TOP number
                     # For subparts like "19 a)", check if the chunk or nearby text contains the TOP number
-                    if not re.search(f"{top_number}\\.", chunk) and not re.search(f"{top_number}{subpart_letter}", chunk):
+                    if not re.search(f"{top_number}.", chunk) and not re.search(f"{top_number}{subpart_letter}", chunk):
                         # If not found in the chunk, check nearby text
                         nearby_text = self.content_text[max(0, chunk_start - 200):chunk_start]
-                        if not re.search(f"{top_number}\\.", nearby_text) and not re.search(f"{top_number}{subpart_letter}", nearby_text):
+                        if not re.search(f"{top_number}.", nearby_text) and not re.search(f"{top_number}{subpart_letter}", nearby_text):
                             continue
                     
                     return chunk
@@ -450,7 +450,7 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                     
                     # Check if this "b)" is near the TOP number
                     nearby_text = self.content_text[max(0, b_start - 200):b_start]
-                    if re.search(f"{top_number}\\.", nearby_text) or re.search(f"{top_number}a", nearby_text):
+                    if re.search(f"{top_number}.", nearby_text) or re.search(f"{top_number}a", nearby_text):
                         # This "b)" is likely associated with our TOP number
                         
                         # Find the end of this section
