@@ -1,9 +1,7 @@
 import re
 import pdb
-
 import requests
 from lxml import html as etree
-
 import pdfcutter
 
 # Import relative Parent Directory for Helper Classes
@@ -15,46 +13,82 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://www.saarland.de/lvsaarland/DE/bundesrat/br-beschluesse/br-beschluesse_node.html?gtp=%252687c6339c-fd8a-4a70-9bff-954224c0fe05_list%253D{searchnumber}'
-BASE_URL = 'https://www.saarland.de/'
+# Base URL for PDF downloads
+BASE_URL = 'https://www.saarland.de'
+PDF_URL_TEMPLATE = 'https://www.saarland.de/SharedDocs/Downloads/DE/Landesvertretung_Berlin/Bundesratsbeschl%C3%BCsse/{year}/Beschl%C3%BCsse_{session}.Sitzung'
 NUM_RE = re.compile(r'(\d+)[.]?[ ]?Sitzung') #Space is sometimes missing between number and "Sitzung"
 BR_TEXT_RE = re.compile(r'^Ergebnis BR:')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
-
-
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
-        searchpage=1
+        # Start with the most recent session (as of April 2025)
+        current_session = 1052
+        current_year = 2025
+        
         while True:
-            #Go through search pages 1,..., until search is empty
-            searchresponse = requests.get(INDEX_URL.format(searchnumber=searchpage))
-            searchroot = etree.fromstring(searchresponse.content)
-            fields = searchroot.xpath('//a[@class="Publication"]')
-            if len(fields) == 0: #Have seen all search results
-                break
-
-            for field in fields:
-                text = field.text_content()
-                if text == "": # 952 not there, but still link -> would break num regex
+            # Construct the URL for the current session
+            session_url = PDF_URL_TEMPLATE.format(year=current_year, session=current_session)
+            
+            # Try to access the session page
+            try:
+                print(f"Trying session {current_session} ({current_year}): {session_url}")
+                session_response = requests.get(session_url)
+                
+                # If page doesn't exist, try the previous year or decrement session
+                if session_response.status_code == 404:
+                    print(f"404 for session {current_session} ({current_year})")
+                    
+                    # Try the same session in the previous year
+                    prev_year = current_year - 1
+                    prev_year_url = PDF_URL_TEMPLATE.format(year=prev_year, session=current_session)
+                    
+                    print(f"Trying previous year: {prev_year_url}")
+                    prev_year_response = requests.get(prev_year_url)
+                    
+                    if prev_year_response.status_code == 200:
+                        # Found in previous year
+                        current_year = prev_year
+                        session_response = prev_year_response
+                        session_url = prev_year_url
+                        print(f"Found in previous year: {current_year}")
+                    else:
+                        # Not found in previous year either, decrement session
+                        current_session -= 1
+                        if current_session < 900:  # Lower limit
+                            break
+                        continue
+                
+                # Parse the page to find the PDF link
+                session_root = etree.fromstring(session_response.content)
+                
+                # Use the correct class name 'downloadLink' to find the PDF link
+                pdf_link_elements = session_root.xpath('//a[@class="downloadLink"]')
+                
+                if not pdf_link_elements:
+                    print(f"Warning: Could not find PDF link for session {current_session}")
+                    current_session -= 1
                     continue
-                num = int(NUM_RE.search(text).group(1))
+                
+                pdf_link = pdf_link_elements[0].attrib['href']
+                if not pdf_link.startswith('http'):
+                    pdf_link = BASE_URL + pdf_link
+                
+                print(f"Found PDF for session {current_session} ({current_year}): {pdf_link}")
+                yield current_session, pdf_link
+                
+                # Move to the previous session
+                current_session -= 1
+                
+            except Exception as e:
+                print(f"Error processing session {current_session}: {str(e)}")
+                current_session -= 1
+                # If we encounter too many errors, we might want to stop
+                if current_session < 900:  # Arbitrary lower limit
+                    break
 
-                partLinkRedirect = field.attrib['href'] #Only /dokumente/... in href
-                linkRedirect = BASE_URL + partLinkRedirect
-                if "960.Sitzung" in linkRedirect: #Forgot PDF Link for session 960 -> would break xpath for PDF Link
-                    continue
-                redirectresponse = requests.get(linkRedirect) #Need to go to another page where PDF Link is located
-                redirectroot = etree.fromstring(redirectresponse.content)
-
-                partPDFlink = redirectroot.xpath('//a[@class="downloadLink"]')[0].attrib['href'] #Link to PDF
-                pdfLink = BASE_URL + partPDFlink
-
-                yield int(num), pdfLink
-            searchpage+=1
-
-#Senats/BR Texts and TOPS in BW  all have same formatting
+#Senats/BR Texts and TOPS in SL all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
 
     def __init__(self, cutter, senatsTextPrefix="Haltung SL:"):
