@@ -14,7 +14,8 @@ import MainBoilerPlate
 INDEX_URL = 'https://mbeim.nrw/nrw-beim-bund/nordrhein-westfalen-im-bundesrat/abstimmverhalten-im-bundesrat'
 BASE_URL = 'https://mbeim.nrw/'
 NUM_RE = re.compile(r'(\d+)-sitzung')
-SESSION_URL_FORMAT = 'https://mbeim.nrw/{}-sitzung-des-bundesrates-abstimmverhalten-des-landes-nordrhein-westfalen'
+SESSION_URL_FORMAT_NEW = 'https://mbeim.nrw/{}-sitzung-des-bundesrates-abstimmverhalten-des-landes-nordrhein-westfalen'
+SESSION_URL_FORMAT_OLD = 'https://mbeim.nrw/{}-sitzung-des-bundesrates-am-24-november-2023'
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -33,8 +34,13 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
             match = re.search(r'(\d+)\.\s+Sitzung', text)
             if match:
                 num = int(match.group(1))
-                # Create the URL for the session HTML page
-                session_url = SESSION_URL_FORMAT.format(num)
+                
+                # Use different URL formats based on session number
+                if num == 1038:
+                    session_url = SESSION_URL_FORMAT_OLD.format(num)
+                else:
+                    session_url = SESSION_URL_FORMAT_NEW.format(num)
+                    
                 yield num, session_url
 
 #Don't have to change scraper.ipynb when derive TextExtractorHolder. But basically re-implement everything for HTML Parsing
@@ -339,8 +345,8 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
                     for next_pattern in [
                         r"\d+\.\s+[A-Za-z]",  # Next main TOP
                         r"\d+\.\s*[a-z]\)",   # Next TOP with subpart
-                        r"\b[a-z]\)\s",       # Next subpart
-                        r"NRW:",              # NRW marker (often indicates end of BR text)
+                        r"\bc\)\s",           # Next subpart (c)
+                        r"NRW:",              # NRW marker
                     ]:
                         next_matches = list(re.finditer(next_pattern, self.content_text[start_pos + len(match.group(0)):]))
                         if next_matches:
