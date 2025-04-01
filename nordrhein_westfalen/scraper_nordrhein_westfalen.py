@@ -59,6 +59,12 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         self.websiteRoot = websiteRoot
         self.session = session
         self.sessionNumber = int(self.session['number'])
+        
+        # Find the table containing the TOPs
+        self.table = self.websiteRoot.xpath('//table')
+        if not self.table:
+            raise Exception("Could not find table with TOPs in the HTML")
+        self.table = self.table[0]
 
     #Hotswap Rules for finding TOP and extracting Senat/BR Text w.r.t. session number and TOP
     #Out: (SenatText, BRText) Tuple
@@ -67,45 +73,98 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
         # Extract the TOP number without the dot and subpart
         top_number = currentTOP.split('.')[0].strip()
         
-        # Find the content for this TOP in the HTML
-        top_content = self._findTOPContent(top_number, currentTOP)
+        # Find the row for this TOP in the table
+        top_row = self._findTOPRow(top_number, currentTOP)
         
-        if top_content is None:
+        if top_row is None:
             return "", ""
             
-        return self._extractSenatBRTextsFromContent(top_content, currentTOP)
+        return self._extractSenatBRTextsFromRow(top_row)
     
-    def _findTOPContent(self, top_number, currentTOP):
-        # Look for content that starts with the TOP number
-        # The new structure has TOP content in paragraphs
+    def _findTOPRow(self, top_number, currentTOP):
+        # Find all rows in the table
+        rows = self.table.xpath('.//tr')
         
-        # First try to find content with explicit TOP number
-        top_elements = self.websiteRoot.xpath(f'//p[contains(text(), "TOP: {top_number}.")]')
+        # Skip the header row
+        rows = rows[1:] if len(rows) > 0 else []
         
-        if not top_elements:
-            # Try to find content that mentions the TOP number in a different format
-            top_elements = self.websiteRoot.xpath(f'//p[contains(text(), "{currentTOP}")]')
+        # Check if this is a subpart TOP (e.g., "8. a)")
+        is_subpart = len(currentTOP.split()) > 1
         
-        if not top_elements:
-            # If still not found, look for any content that might be related to this TOP
-            # This is a fallback and might not be accurate
-            return None
+        for row in rows:
+            # Get the first cell (TD) which contains the TOP number
+            cells = row.xpath('./td')
+            if not cells or len(cells) < 2:
+                continue
+                
+            top_cell = cells[0]
+            top_text = top_cell.text_content().strip()
             
-        # Return the first matching element
-        return top_elements[0]
-    
-    def _extractSenatBRTextsFromContent(self, top_content, currentTOP):
-        # Get the full text content
-        full_text = top_content.text_content()
+            # If this is a main TOP (e.g., "8.")
+            if not is_subpart and top_text == top_number + '.':
+                return row
+                
+            # If this is a subpart TOP (e.g., "8. a)")
+            if is_subpart:
+                # Handle empty first cell for subparts (they often have no number)
+                if not top_text and currentTOP.endswith('b)'):
+                    # Check if previous row was the 'a)' subpart
+                    prev_row_index = rows.index(row) - 1
+                    if prev_row_index >= 0:
+                        prev_row = rows[prev_row_index]
+                        prev_cells = prev_row.xpath('./td')
+                        if prev_cells and len(prev_cells) >= 2:
+                            prev_top_text = prev_cells[0].text_content().strip()
+                            if prev_top_text == top_number + '.':
+                                # This is likely the 'b)' subpart
+                                return row
+                
+                # Direct match for subparts that have their number in the first cell
+                if top_text and currentTOP.replace(' ', '') in top_text.replace(' ', ''):
+                    return row
         
-        # Look for "NRW:" which separates BR text from Senats text
-        if "NRW:" in full_text:
-            parts = full_text.split("NRW:")
-            br_text = parts[0].strip()
-            senats_text = "NRW:" + parts[1].strip() if len(parts) > 1 else ""
+        return None
+    
+    def _extractSenatBRTextsFromRow(self, row):
+        # Get the second cell which contains the text content
+        cells = row.xpath('./td')
+        if len(cells) < 2:
+            return "", ""
+            
+        content_cell = cells[1]
+        content_text = content_cell.text_content()
+        
+        # Look for italic text elements which represent the Senats text
+        italic_elements = content_cell.xpath('.//em | .//i')
+        
+        br_text = ""
+        senats_text = ""
+        
+        if italic_elements:
+            # Extract all italic text - this is all Senats text
+            italic_texts = [elem.text_content().strip() for elem in italic_elements]
+            # Filter out empty strings to avoid empty separator error
+            italic_texts = [text for text in italic_texts if text]
+            senats_text = "\n".join(italic_texts)
+            
+            # Find the position of the first italic text in the content
+            if italic_texts:
+                first_italic = italic_texts[0]
+                first_pos = content_text.find(first_italic)
+                if first_pos > 0:
+                    # Everything before the first italic text is BR text
+                    br_text = content_text[:first_pos].strip()
+                else:
+                    # If we can't find the first italic text or it's at the beginning,
+                    # assume there's no BR text
+                    br_text = ""
+            else:
+                # No valid italic texts found, assume all is BR text
+                br_text = content_text.strip()
         else:
-            # If no "NRW:" marker, assume all is BR text
-            br_text = full_text.strip()
-            senats_text = ""
+            # No italic elements found, assume all text is BR text
+            br_text = content_text.strip()
             
+        if not senats_text.strip():
+            print('empty')
         return senats_text, br_text
