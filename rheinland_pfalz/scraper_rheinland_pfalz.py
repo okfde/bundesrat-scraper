@@ -164,21 +164,32 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
     #First find right group and then lookup right group senat text in dict
     def parseLikeLowerPart(self, selectionCurrentTOP):
         partTitleSelection = self.getPartTitleSelection(selectionCurrentTOP)
+        if not partTitleSelection:
+            # Handle case where no part title is found
+            print(f"Warning: No part title found for TOP {selectionCurrentTOP.clean_text()}. Using empty text.")
+            return "", ""
+            
         partTitle = partTitleSelection.clean_text().strip()
+        if partTitle not in self.dictPartTitleToSenatsText:
+            # Handle case where part title is not in dictionary
+            print(f"Warning: Part title '{partTitle}' not found in dictionary for TOP {selectionCurrentTOP.clean_text()}. Using empty text.")
+            return "", ""
+            
         senats_text = self.dictPartTitleToSenatsText[partTitle]
         return senats_text, "" #No BR Text in RP PDFs
 
     #Right Group of TOP in lower part == lowest Roman numeral still above TOP
     def getPartTitleSelection(self, selectionCurrentTOP):
         partsAboveTOPSelections = self.selectionsPartTitles.above(selectionCurrentTOP)
+        if len(partsAboveTOPSelections) == 0:
+            return None
         partSelection = self.getLowestSelection(partsAboveTOPSelections)
         return partSelection
 
     #Return selection with biggest doc_top
     def getLowestSelection(self, selections):
         if len(selections) == 0: #max throws error for empty set
-            return selections
-
+            return None
         return max(selections, key= lambda x: x.doc_top)
 
     #Fork of DefaultTOPPositionFinder class in PDFTextExtractor File, but need it now for finding alternative next TOP as well, so just copy-pasted it and added not empty Selecion Check.
