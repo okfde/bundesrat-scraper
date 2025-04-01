@@ -15,7 +15,8 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://tpp.rlp.de/dataset?q=Abstimmungsverhalten&sort=score+desc%2C+metadata_modified+desc&page={}'
+# Updated to use the Bundesrat tag page instead of search
+INDEX_URL = 'https://tpp.rlp.de/dataset/?tags=Bundesrat&page={}'
 BASE_URL = 'https://tpp.rlp.de'
 NUM_RE = re.compile(r'der (\d+)\. Sitzung')#Typos all over the place, so only match little part
 BR_TEXT_RE = re.compile(r'^Ergebnis BR:')
@@ -33,23 +34,36 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         while True:
             response = requests.get(INDEX_URL.format(searchPageNum))
             root = etree.fromstring(response.content)
-            resultsOnPage = root.xpath('//*[@id="content"]/div[3]/div/div/ul/li/div/h3/a') # All Search Results On this Page
-
+            
+            # Updated XPath to match the new website structure
+            # Now looking for h2 elements with links that contain session information
+            resultsOnPage = root.xpath('//h2/a[contains(@href, "eakte")]')
+            
             if len(resultsOnPage) == 0: #Empty Search Page -> Visited everything possible -> break Loop
                 break
 
-            for partLink in resultsOnPage: #Only /sharepoint... , not http://www...
-
+            for partLink in resultsOnPage:
                 text = partLink.text_content()
                 maybeNum = NUM_RE.search(text) #Links to a Bundesrat-PDF?
                 if maybeNum: #Also have e.g. "Digitalpakt und Grundgesetzänderung" as link -> Filter them out
                     num = int(maybeNum.group(1))
                     #Have to look at this link again before I can get PDF URL
-                    redirectLink = BASE_URL + partLink.attrib['href']
+                    redirectLink = partLink.attrib['href']
+                    if not redirectLink.startswith(BASE_URL):
+                        redirectLink = BASE_URL + redirectLink
+                        
                     responseLink = requests.get(redirectLink)
                     rootLink = etree.fromstring(responseLink.content)
-                    link = rootLink.xpath('//*[@id="dataset-resources"]/ul/li/div/ul/li[2]/a')[0].attrib['href'] #There should only be one result with that xpath
-                    yield int(num), link
+                    
+                    # Updated XPath to find the PDF download link
+                    # Looking for the direct download link with PDF extension
+                    pdf_links = rootLink.xpath('//a[contains(@href, ".pdf") and contains(@href, "download")]/@href')
+                    
+                    if pdf_links:
+                        # Take the first PDF download link found
+                        link = pdf_links[0]
+                        print(f"Found session {num} with PDF link: {link}")
+                        yield int(num), link
 
             searchPageNum+=1
 
@@ -123,6 +137,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         if selectionDirectNextTOP:
             senats_text = senats_text.above(selectionDirectNextTOP)
         senats_text = senats_text.clean_text()
+        if not senats_text.strip():
+            print('empty')
         return senats_text, "" #RP no BR Text in PDFs
 
     #Ordering TOPs very special, so have to find next TOP again (e.g. session 985 , first TOP 2., then directly 4.
