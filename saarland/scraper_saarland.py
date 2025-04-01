@@ -131,12 +131,16 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
 
     def _getRightTOPPositionFinder(self, top):
-        if self.sessionNumber == 992 and top in ["23. b)", "69. b)", "69. d)"]:
-            return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}{subpart}") #Somehow dot not in same chunk as number and subpart
-        if self.sessionNumber == 992 and "40" in top: #992 40 a,b,c are very weird (all TOPs before the text, would have to take 41 as next TOP, dont have upper bound for text ...), need this for right Text 39 (nextTop is 40a
-            return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
+        if self.sessionNumber <= 992:
+            if self.sessionNumber == 992 and top in ["23. b)", "69. b)", "69. d)"]:
+                return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}{subpart}") #Somehow dot not in same chunk as number and subpart
+            if self.sessionNumber == 992 and "40" in top: #992 40 a,b,c are very weird (all TOPs before the text, would have to take 41 as next TOP, dont have upper bound for text ...), need this for right Text 39 (nextTop is 40a
+                return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
 
-        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}{subpart}.") #25a.
+            return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP="{number}{subpart}.") #25a.
+        elif self.sessionNumber >= 993:
+            return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatNumberOnlyTOP="{number}", formatSubpartTOP="{number}{subpart}", TOPRight=100)
+
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In BW all Text Rules are consistent
