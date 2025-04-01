@@ -91,7 +91,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 #Senats/BR Texts and TOPS in SL all have same formatting
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
 
-    def __init__(self, cutter, senatsTextPrefix="Haltung SL:"):
+    def __init__(self, cutter, senatsTextPrefix="Haltung\sSL:"):
         self.senatsTextPrefix = senatsTextPrefix
         super().__init__(cutter)
 
@@ -103,7 +103,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
 
         #Because selectionNextTOP is never empty (but could be empty selector), I can use it without checking if it is None or empty
         senatTitleSelection = self.cutter.all().filter(auto_regex="^{}".format(self.senatsTextPrefix)).below(selectionCurrentTOP)
-        BRTitleSelection = self.cutter.all().filter(auto_regex="^Ergebnis BR:").below(selectionCurrentTOP)
+        BRTitleSelection = self.cutter.all().filter(auto_regex="^Ergebnis\sBR:").below(selectionCurrentTOP)
         if selectionNextTOP: #Otherwise Always empty text if no next TOP
             senatTitleSelection = senatTitleSelection.above(selectionNextTOP)
             BRTitleSelection = BRTitleSelection.above(selectionNextTOP)
