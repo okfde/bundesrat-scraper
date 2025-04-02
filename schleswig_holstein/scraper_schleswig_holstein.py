@@ -2,7 +2,7 @@ import re
 import pdb
 
 import requests
-from lxml import html as etree
+from lxml import html
 
 import pdfcutter
 
@@ -15,8 +15,9 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-CURR_INDEX_URL = 'https://www.schleswig-holstein.de/DE/Landesregierung/LVB/Aufgaben/bundesratsarbeit_mehr.html'
-ARCHIVE_INDEX_URL = 'https://www.schleswig-holstein.de/DE/Landesregierung/LVB/Aufgaben/archiv_abstimmungen.html'
+# Update URLs to match the new website structure
+CURR_INDEX_URL = 'https://www.schleswig-holstein.de/DE/landesregierung/ministerien-behoerden/LVB/Aufgaben/Bundesratsarbeit/abstimmverhalten'
+ARCHIVE_INDEX_URL = 'https://www.schleswig-holstein.de/DE/landesregierung/ministerien-behoerden/LVB/Aufgaben/Bundesratsarbeit/abstimmverhalten'
 
 BASE_URL='https://www.schleswig-holstein.de/'
 NUM_RE = re.compile(r'(\d+)\. Sitzung')
@@ -26,28 +27,47 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
-        # Current Session on different page then all the rest
-        currResponse = requests.get(CURR_INDEX_URL)
-        currRoot = etree.fromstring(currResponse.content)
-        currATag = currRoot.xpath('//*[@class="Publication FTpdf"]')[0] #Only link to current session has this class
-        currNum, currLink = self.extractLinkAndNumber(currATag)
-        yield int(currNum), currLink
-
-        #Sessions in Archive
-        archiveResponse = requests.get(ARCHIVE_INDEX_URL)
-        archiveRoot = etree.fromstring(archiveResponse.content)
-        archiveATagsRedirect = archiveRoot.xpath('//*[@id="content"]/div/div[1]/p/a') #List of links that redirect to other site first
-        archiveATagsDirect = archiveRoot.xpath('//*[@id="content"]/div/div[1]/p/span/a') #List of links that redirect directly to PDF (Have one more <span> tag in XPath
-        archiveATags = archiveATagsRedirect + archiveATagsDirect
-        for archiveATag in archiveATags:
-            num, link = self.extractLinkAndNumber(archiveATag)
-            yield int(num), link
+        # The new website structure has all PDFs on a single page
+        print(f"Fetching PDFs from {CURR_INDEX_URL}")
+        response = requests.get(CURR_INDEX_URL)
+        
+        # Use html.fromstring instead of etree.fromstring
+        root = html.fromstring(response.content)
+        
+        # Find all PDF links on the page
+        pdf_links = root.xpath('//a[contains(@href, ".pdf")]')
+        print(f"Found {len(pdf_links)} PDF links")
+        
+        found_sessions = {}
+        for link in pdf_links:
+            href = link.attrib['href']
+            
+            # Get the text content of the link
+            link_text = link.text_content().strip()
+            
+            # Try to extract session number using regex
+            match = NUM_RE.search(link_text)
+            if match:
+                num = int(match.group(1))
+                # Full URL to the PDF
+                full_url = href if href.startswith('http') else BASE_URL + href
+                
+                # Debug output
+                print(f"Found session {num}: {full_url}")
+                
+                found_sessions[num] = full_url
+                yield num, full_url
+        
+        if not found_sessions:
+            print("WARNING: No sessions found! Check if the website structure has changed.")
 
     #There are some links that point to PDF directly (have "PDF" in title),
     #or that redirect first to another page, where PDF Link is written down
     #In: <a>-tag HTML
     #Out: (num, link)
     def extractLinkAndNumber(self, aTag):
+        # This method is kept for backward compatibility but is no longer used
+        # in the new website structure
         text = aTag.text
         num = int(NUM_RE.search(text).group(1))
         if "PDF" in text.upper(): #Links to PDF directly
@@ -55,7 +75,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         else:
             redirectLink = BASE_URL + aTag.attrib['href']
             redirectResponse = requests.get(redirectLink)
-            redirectRoot = etree.fromstring(redirectResponse.content)
+            redirectRoot = html.fromstring(redirectResponse.content)
             redirectATag = redirectRoot.xpath('//a[contains(@href, "pdf")]')[0] #Somehow, XPath from Chrome doesn't find anything here, so search inside href for "pdf" substring
             link = BASE_URL + redirectATag.attrib['href']
         return num, link
@@ -97,4 +117,3 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #In BW all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
         return SenatsAndBRTextExtractor(cutter)
-
