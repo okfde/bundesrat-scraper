@@ -15,7 +15,7 @@ The plan:
 Everything is tested unter Python 3.13.2, It is optimized for Arch Linux, but should work with other Linux Distros as well. The `pdftohtml` dependency is required for the `pdfcutter` tool to work.
 
 ```
-  yay -S poppler --noconfirm #Or your package manager, need pdftohtml program
+  yay -S poppler ghostscript --noconfirm #Or your package manager, need pdftohtml program + ghostscript for reformating sachsen pdfs
   python -m venv pyvenv
   source pyvenv/bin/activate
   pip install -r requirements.txt
