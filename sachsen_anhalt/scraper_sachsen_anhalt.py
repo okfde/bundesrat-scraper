@@ -18,9 +18,9 @@ import MainBoilerPlate
 INDEX_URL = 'https://lv.sachsen-anhalt.de/bundesrat/aktuell/'
 NUM_RE = re.compile(r'(\d+)\. Sitzung des Bundesrates')
 RESULTS_RE = re.compile(r'Ergebnisse_(\d+)\._BR___Abstimmung_S(achsen-Anhalt|T)\.pdf')
-BR_TEXT_RE = re.compile(r'^[ ]?Ergebnis BR:(.*)')
-SENAT_TEXT_RE = re.compile(r'^[ ]?Abstimmung ST:(.*)')
-BRSENAT_TEXT_RE = re.compile(r'^( Hinweis: Die nächste Sitzung des BR wurde für den 03.07.2020, 09.30 Uhr, einberufen.|)[ ]?Ergebnis BR[ ]?/ Abstimmung ST:(.*)')#Space at front is ok+ , mid space missing for SA 991 1a, long prefix only needed for SA 991 1c strange order selected lines
+BR_TEXT_RE = re.compile(r'^\s?Ergebnis\sBR:(.*)')
+SENAT_TEXT_RE = re.compile(r'^\s?Abstimmung\sST:(.*)')
+BRSENAT_TEXT_RE = re.compile(r'^( Hinweis: Die nächste Sitzung des BR wurde für den 03.07.2020, 09.30 Uhr, einberufen.|)[ ]?Ergebnis\sBR[ ]?/\sAbstimmung\sST:(.*)')#Space at front is ok+ , mid space missing for SA 991 1a, long prefix only needed for SA 991 1c strange order selected lines
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -86,7 +86,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         page_footer = 1260 #Upper of footer on each page
 
 
-        ergebnis_br = self.cutter.filter(auto_regex='^[ ]?Ergebnis BR').below(selectionCurrentTOP)
+        ergebnis_br = self.cutter.filter(auto_regex='^\s?Ergebnis\sBR').below(selectionCurrentTOP)
         if selectionNextTOP: #Otherwise allways empty if no nextTOP
             ergebnis_br = ergebnis_br.above(selectionNextTOP)
 
@@ -111,7 +111,7 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             senats_text = br_text
 
         else: #Separat Senats Text
-            abstimmung_st_senat = self.cutter.filter(auto_regex='^Abstimmung ST').below(selectionCurrentTOP).above(selectionNextTOP)
+            abstimmung_st_senat = self.cutter.filter(auto_regex='^Abstimmung\sST').below(selectionCurrentTOP).above(selectionNextTOP)
 
             senats_text = self.cutter.all().filter(
                 doc_top__gte=abstimmung_st_senat.doc_top - 1 ,#Relative to all pages
@@ -142,6 +142,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
             else:
                 senats_text = ""
 
+        if not senats_text.strip():
+            print('empty')
         return senats_text, br_text
 
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
