@@ -15,9 +15,10 @@ import selectionVisualizer as dVis
 import PDFTextExtractor
 import MainBoilerPlate
 
-INDEX_URL = 'https://www.landesregierung-thueringen.de/thueringen-in-berlin/bundesrat/'
-BASE_URL='https://www.landesregierung-thueringen.de/'
-NUM_RE = re.compile(r'[0]?(\d+)[_-]') 
+# Updated URL to the new website
+INDEX_URL = 'https://thueringen.de/bundesrat'
+BASE_URL = 'https://thueringen.de/'
+NUM_RE = re.compile(r'(\d+)\._BR_') 
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -26,20 +27,28 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         response = requests.get(INDEX_URL)
         root = etree.fromstring(response.content)
 
-        names = root.xpath('/html/body/main/div[2]/div/section/div/div[1]/div[3]/div/div/div/div/div/div/div/div/p/a')# Again, more clever xpaths just don't get recognized
-        for name in names:
-            link = name.attrib['href']
-            if "www.bundesrat.de" in link: #Link to something irrelevant at bottom of table
+        # Updated XPath to match the new website structure
+        links = root.xpath('//a[contains(@href, "fileadmin") and contains(@href, ".pdf")]')
+        
+        for link in links:
+            href = link.attrib['href']
+            # Skip if not a PDF link for Bundesrat sessions
+            if not 'BR_-_Abstimmungsverhalten-TH' in href:
                 continue
-            num = int(NUM_RE.search(link).group(1)) #title formatmore consistent than link names
-            if num == 1220: #Somehow, this is the pdf number for TH for session 984
-                num = 984
-            if "http" in link : #already full path in a tag (e.g. BA 951), else append to absolute path
-               realLink = link
+                
+            # Extract session number from the PDF filename
+            match = NUM_RE.search(href)
+            if not match:
+                continue
+                
+            num = int(match.group(1))
+            
+            # Ensure the URL is absolute
+            if href.startswith('http'):
+                realLink = href
             else:
-               realLink = BASE_URL + link 
-            if num == 987: #TH Merged session 987, 988 into one document -> Return it for 987 as well as 988 (987 by "default" yield
-                yield 988, realLink
+                realLink = BASE_URL.rstrip('/') + href if not href.startswith('/') else BASE_URL.rstrip('/') + href
+                
             yield num, realLink
 
 # TH has sometimes "double rows" , spanning both columns , which are part of both senat and br text (e.g. 986 7). Therefore, have to look at both texts at the same time and decide whether a line is senat text, br text or both
