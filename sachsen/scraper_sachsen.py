@@ -209,6 +209,8 @@ def getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top):
             right__lt=right_br
         )
 
+    if not senats_text.clean_text().strip():
+        print('empty')
     return senats_text.clean_text(), br_text.clean_text()
 
 def get_session(session):
