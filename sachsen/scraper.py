@@ -29,8 +29,10 @@ else:
 print("\nStarting to process sessions...")
 for session in sessions:
     num = session['number']
-    if str(num) in session_tops:
-        print(f"Session {num} already processed, skipping")
+#    if str(num) in session_tops: TODO
+#        print(f"Session {num} already processed, skipping")
+#        continue
+    if num > 1035:
         continue
     
     print(f'\nProcessing session: {num}')

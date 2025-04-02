@@ -143,10 +143,12 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     # Define the TOP position finder for Sachsen PDFs
     def _getRightTOPPositionFinder(self, top):
         # Default format for TOPs with subparts
-        formatTOPsWithSubpart = "{number}.\s{subpart})"
+        formatTOPsWithSubpart = "{number}{subpart})."
+        if self.sessionNumber == 1038:
+            formatTOPsWithSubpart = "{number}{subpart}.)"
         
         # Return the appropriate TOP position finder
-        return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
+        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatSubpartTOP=formatTOPsWithSubpart)
     
     # Define the text extractor for Sachsen PDFs
     def _getRightSenatBRTextExtractor(self, top, cutter):
