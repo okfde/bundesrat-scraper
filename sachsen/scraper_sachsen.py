@@ -214,21 +214,40 @@ def getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top):
     return senats_text.clean_text(), br_text.clean_text()
 
 def get_session(session):
-    print(f"Processing session {session['number']}...")
+    session_number = str(session['number'])
+    print(f"Processing session {session_number}...")
     
-    # Get PDF URLs for all sessions
-    PDF_URLS = dict(get_pdf_urls())
-    print(f"Found {len(PDF_URLS)} PDF URLs")
-    
-    # Create PDF Link JSON File
+    # Load existing PDF URLs if available
     URLFILENAME = "session_urls.json"
-    with open(URLFILENAME, 'w') as f:
-        json.dump(PDF_URLS, f)
+    if os.path.exists(URLFILENAME):
+        with open(URLFILENAME, 'r') as f:
+            PDF_URLS = json.load(f)
+        print(f"Loaded {len(PDF_URLS)} existing PDF URLs")
+    else:
+        PDF_URLS = {}
+        print(f"No existing PDF URLs found, creating new file: {URLFILENAME}")
+    
+    # Check if we already have the URL for this session
+    if session_number in PDF_URLS:
+        print(f"URL for session {session_number} already known, using cached URL")
+    else:
+        print(f"URL for session {session_number} not found, fetching new URLs...")
+        # Get PDF URLs for all sessions
+        new_urls = dict(get_pdf_urls())
+        
+        # Update our URL dictionary with any new URLs
+        for num, url in new_urls.items():
+            PDF_URLS[str(num)] = url
+        
+        # Save the updated URLs
+        with open(URLFILENAME, 'w') as f:
+            json.dump(PDF_URLS, f)
+        print(f"Updated URL file with {len(new_urls)} URLs")
     
     try:
         filename = helper.get_session_pdf_filename(session, PDF_URLS)
         print(f"Using PDF file: {filename}")
         return dict(get_beschluesse_text(session, filename))
     except KeyError:
-        print(f"No PDF found for session {session['number']}")
+        print(f"No PDF found for session {session_number}")
         return None
