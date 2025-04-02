@@ -20,8 +20,8 @@ CURR_INDEX_URL = 'https://www.schleswig-holstein.de/DE/landesregierung/ministeri
 ARCHIVE_INDEX_URL = 'https://www.schleswig-holstein.de/DE/landesregierung/ministerien-behoerden/LVB/Aufgaben/Bundesratsarbeit/abstimmverhalten'
 
 BASE_URL='https://www.schleswig-holstein.de/'
-NUM_RE = re.compile(r'(\d+)\. Sitzung')
-BR_TEXT_RE = re.compile(r'^Ergebnis BR:')
+NUM_RE = re.compile(r'(\d+)\.\sSitzung')
+BR_TEXT_RE = re.compile(r'^Ergebnis\sBR:')
 
 class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 
@@ -84,7 +84,7 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
 class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor):
     def _extractSenatBRTexts(self, selectionCurrentTOP, selectionNextTOP):
         page_heading = 73 #Bottom of heading on each page
-        page_footer = 1260 #Upper of footer on each page
+        page_footer = 1215 #Upper of footer on each page
 
         #Get indented Text, Senats text is everything below it, need to check below this because otherwise I also filter Name of TOP
         TOPRightIndented = self.cutter.all().below(selectionCurrentTOP).filter(
@@ -107,6 +107,8 @@ class SenatsAndBRTextExtractor(PDFTextExtractor.AbstractSenatsAndBRTextExtractor
         senats_text = senats_text.clean_text()
 
         br_text = "" #SH doesnt repeat BR Text in its PDFs
+        if not senats_text.strip():
+            print('empty')
         return senats_text, br_text
 
 #Senats/BR Texts and TOPS in SH  all have same formatting

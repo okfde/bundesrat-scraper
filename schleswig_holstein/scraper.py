@@ -23,7 +23,6 @@ import scraper_schleswig_holstein
 
 
 USE_CACHE = True
-FORCE_REFRESH = True  # Set to True to force refresh of PDF URLs
 
 
 # In[5]:
@@ -62,7 +61,7 @@ for session in sessions:
     print('\nLoading tops of: %s' % num)
 
     #Need class for later init, don't have all params by now
-    result = scraper_schleswig_holstein.MainExtractorMethod(scraper_schleswig_holstein.TextExtractorHolder).get_session(session, force_refresh=FORCE_REFRESH)
+    result = scraper_schleswig_holstein.MainExtractorMethod(scraper_schleswig_holstein.TextExtractorHolder).get_session(session)
     if result is None:
         continue
     session_tops[str(num)] = result
