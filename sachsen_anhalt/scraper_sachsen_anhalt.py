@@ -2,7 +2,7 @@ import re
 import pdb
 
 import requests
-from lxml import html as etree
+from lxml import html
 
 import pdfcutter
 
@@ -16,7 +16,8 @@ import PDFTextExtractor
 import MainBoilerPlate
 
 INDEX_URL = 'https://lv.sachsen-anhalt.de/bundesrat/aktuell/'
-NUM_RE = re.compile(r'Ergebnisse .* (\d+)\.[ ]?Sitzung des Bundesrates.*')# SA also has "Erläuterungen", don't want those
+NUM_RE = re.compile(r'(\d+)\. Sitzung des Bundesrates')
+RESULTS_RE = re.compile(r'Ergebnisse_(\d+)\._BR___Abstimmung_S(achsen-Anhalt|T)\.pdf')
 BR_TEXT_RE = re.compile(r'^[ ]?Ergebnis BR:(.*)')
 SENAT_TEXT_RE = re.compile(r'^[ ]?Abstimmung ST:(.*)')
 BRSENAT_TEXT_RE = re.compile(r'^( Hinweis: Die nächste Sitzung des BR wurde für den 03.07.2020, 09.30 Uhr, einberufen.|)[ ]?Ergebnis BR[ ]?/ Abstimmung ST:(.*)')#Space at front is ok+ , mid space missing for SA 991 1a, long prefix only needed for SA 991 1c strange order selected lines
@@ -26,18 +27,37 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
     #Out: Dict of {sessionNumberOfBR: PDFWebLink} entries
     def _get_pdf_urls(self):
         response = requests.get(INDEX_URL)
-        root = etree.fromstring(response.content)
-        names = root.xpath('//a')# Somehow, 985 can not be found with almost any xpath, so just get all links and filter by title
-        for name in names:
-            text = name.text_content()
-            maybeNum = NUM_RE.search(text)
-            if not maybeNum: #Nothing found -> No link to session PDF
-                continue
-            num = int(maybeNum.group(1))
-            link = name.attrib['href']
-            yield int(num), link
+        # Use html.fromstring instead of etree.fromstring
+        root = html.fromstring(response.content)
+        
+        # Find all links on the page
+        links = root.xpath('//a')
+        
+        # Dictionary to store session numbers and their PDF links
+        session_links = {}
+        
+        for link in links:
+            href = link.get('href', '')
+            
+            # Check if this is a results PDF link
+            if 'Ergebnisse' in href and href.endswith('.pdf'):
+                # Extract session number from the PDF filename
+                match = RESULTS_RE.search(href)
+                if match:
+                    session_num = int(match.group(1))
+                    # Make sure the URL is absolute
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            href = 'https://lv.sachsen-anhalt.de' + href
+                        else:
+                            href = 'https://lv.sachsen-anhalt.de/' + href
+                    
+                    session_links[session_num] = href
+        
+        # Return session numbers and links as tuples
+        for num, link in session_links.items():
+            yield num, link
 
-#SA uses "46" or "23a" as TOPs instead of "46." and "23. a)"
 class TOPPositionFinder(PDFTextExtractor.DefaultTOPPositionFinder):
     def _getTOPSubpartSelection(self, top):
         number, subpart = top.split() #46. b) -> [46., b)]
