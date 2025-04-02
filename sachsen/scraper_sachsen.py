@@ -6,6 +6,7 @@ import requests
 from lxml import html as etree
 from datetime import datetime
 
+
 # Import relative Parent Directory for Helper Classes
 sys.path.insert(0, os.path.abspath('..')) #Used when call is ` python3 file.py`
 sys.path.insert(0, os.path.abspath('.')) #Used when call is ` python3 $COUNTY/file.py`
@@ -13,6 +14,7 @@ sys.path.insert(0, os.path.abspath('.')) #Used when call is ` python3 $COUNTY/fi
 sys.path.insert(0, os.path.abspath('/home/nwuensche/pdfcutter'))
 import pdfcutter 
 import helper
+import PDFTextExtractor
 
 # Base URLs
 SACHSEN_URL = "https://www.landesvertretung.sachsen.de"
@@ -136,63 +138,43 @@ def get_pdf_urls():
     for session_num, url in sorted(pdf_urls.items()):
         yield session_num, url
 
+class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
+    
+    # Define the TOP position finder for Sachsen PDFs
+    def _getRightTOPPositionFinder(self, top):
+        # Default format for TOPs with subparts
+        formatTOPsWithSubpart = "{number}.\s{subpart})"
+        
+        # Return the appropriate TOP position finder
+        return PDFTextExtractor.DefaultTOPPositionFinder(self.cutter)
+    
+    # Define the text extractor for Sachsen PDFs
+    def _getRightSenatBRTextExtractor(self, top, cutter):
+        # Parameters for the vertical extractor (based on PDF structure)
+        page_heading = 111  # Bottom of heading on each page
+        page_footer = 788   # Upper of footer on each page
+        senat_left = 616    # Start of Senat column
+        senat_right = 892   # End of Senat column
+        br_left = 892       # Start of BR column
+        br_right = 1160     # End of BR column
+        
+        # Return the vertical extractor with the appropriate parameters
+        return PDFTextExtractor.VerticalSenatsAndBRTextExtractor(
+            cutter,
+            page_heading=page_heading,
+            page_footer=page_footer,
+            senatLeft=senat_left,
+            senatRight=senat_right,
+            brLeft=br_left,
+            brRight=br_right
+        )
+
 def get_beschluesse_text(session, filename):
-    cutter = pdfcutter.PDFCutter(filename=filename)
-    session_number = int(session['number'])
-
-    # Use helper functions to extract and format TOPs
-    for top_num, (current, next_) in helper.extractOriginalAndReformatedTOPNumbers(session):
-        current_top = cutter.filter(auto_regex=r'^{}\.'.format(current[:-1].replace(')', r'\)'))) #Escape . in 46. because of regex
-
-        #Sometimes they forgot the . after the TOP
-        if not current_top:
-            current_top = cutter.filter(auto_regex=r'^{}'.format(current[:-1].replace(')', r'\)')))
-
-        next_top = None
-        if next_ is not None: #There is a TOP after this one which we have to take as a lower border
-            next_top = cutter.filter(auto_regex=r'^{}\.'.format(next_[:-1].replace(')', r'\)'))) #Escape . in 46. because of regex
-            if not next_top:
-                next_top = cutter.filter(auto_regex=r'^{}'.format(next_[:-1].replace(')', r'\)'))) #Escape . in 46. because of regex
-        senats_text, br_text = getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top)
-        yield top_num, {'senat': senats_text, 'bundesrat': br_text}
-
-def getSenatsAndBrTextsForCurrentTOP(cutter, current_top, next_top):
-    # Use the VerticalSenatsAndBRTextExtractor for more reliable text extraction
-    from PDFTextExtractor import VerticalSenatsAndBRTextExtractor
+    # Create a TextExtractorHolder instance
+    extractor_holder = TextExtractorHolder(filename, session)
     
-    # Parameters for the vertical extractor (based on PDF structure)
-    page_heading = 111  # Bottom of heading on each page
-    page_footer = 788   # Upper of footer on each page
-    right_title = 616   # End of title column
-    senat_left = 616    # Start of Senat column
-    senat_right = 892   # End of Senat column
-    br_left = 892       # Start of BR column
-    br_right = 1160     # End of BR column
-    
-    # Create the vertical extractor
-    extractor = VerticalSenatsAndBRTextExtractor(
-        cutter,
-        page_heading=page_heading,
-        page_footer=page_footer,
-        senatLeft=senat_left,
-        senatRight=senat_right,
-        brLeft=br_left,
-        brRight=br_right
-    )
-
-    print(current_top)
-    print(next_top)
-    
-    # The current_top and next_top are already selections, not strings
-    # So we can use them directly with the extractor
-    
-    # Extract the texts using the vertical extractor
-    senats_text, br_text = extractor._extractSenatBRTexts(current_top, next_top)
-    
-    if not senats_text.strip():
-        print('empty')
-    
-    return senats_text, br_text
+    # Use the extractor holder to get texts for all TOPs
+    return extractor_holder.getSenatsAndBRTextsForAllSessionTOPs()
 
 def get_session(session):
     session_number = str(session['number'])
