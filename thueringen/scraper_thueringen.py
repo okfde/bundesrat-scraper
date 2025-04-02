@@ -91,6 +91,8 @@ class VerticalSenatsAndBRTextExtractor(PDFTextExtractor.VerticalSenatsAndBRTextE
 
         senats_text = senats_text.clean_text()
         br_text = br_text.clean_text()
+        if not senats_text.strip():
+            print('empty')
         return senats_text, br_text
 
 #TH 987 is in the same pdf as TH 988, no next top would add whole 988 to last TOP in 987 
@@ -109,7 +111,7 @@ class VerticalSenatsAndBRTextExtractor992_40abc(VerticalSenatsAndBRTextExtractor
         selectionNextTOP = self.cutter.all().filter(auto_regex="^Drucksache 316/20 $")
         return super()._extractSenatBRTexts(selectionCurrentTOP, selectionNextTOP)
 
-page_heading = 250
+page_heading = 130
 
     #Senats/BR Texts and TOPS in BA  all have same formatting
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
@@ -117,16 +119,16 @@ class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     #Can't uncouple Subpart from number TOP (e.g. BA 985 "9a)." ) , so use CustomTOPFormatPositionFinder for this
     #Still use default format for number only TOPs
     def _getRightTOPPositionFinder(self, top):
-        formatNumberOnlyTOPs="{number}" #e.g. TH 986 1. is "1"
-        formatTOPsWithSubpart="{number} {subpart}" #e.g. TH 986 29. a) is "29 a)"
-        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatNumberOnlyTOP = formatNumberOnlyTOPs, formatSubpartTOP=formatTOPsWithSubpart, TOPRight=90 , page_heading = page_heading)
+        formatNumberOnlyTOPs="{number}$" #e.g. TH 986 1. is "1"
+        formatTOPsWithSubpart="{number}\s{subpart}" #e.g. TH 986 29. a) is "29 a)"
+        return PDFTextExtractor.CustomTOPFormatPositionFinder(self.cutter, formatNumberOnlyTOP = formatNumberOnlyTOPs, formatSubpartTOP=formatTOPsWithSubpart, TOPRight=100 , page_heading = page_heading)
 
     # Decide if I need custom rules for special session/TOP cases because PDF format isn't consistent
     #In BA all Text Rules are consistent
     def _getRightSenatBRTextExtractor(self, top, cutter): 
-        senatLeft = 390 #Default
+        senatLeft = 350 #Default
         brLeft = 615
-        page_footer = 1180
+        page_footer = 1160
 
         if self.sessionNumber == 987:
             return VerticalSenatsAndBRTextExtractor987(cutter,
