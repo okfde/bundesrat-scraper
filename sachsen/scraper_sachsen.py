@@ -5,7 +5,7 @@ import sys
 import requests
 from lxml import html as etree
 from datetime import datetime
-
+import subprocess
 
 # Import relative Parent Directory for Helper Classes
 sys.path.insert(0, os.path.abspath('..')) #Used when call is ` python3 file.py`
@@ -138,6 +138,33 @@ def get_pdf_urls():
     for session_num, url in sorted(pdf_urls.items()):
         yield session_num, url
 
+def remove_pdf_protection(input_pdf):
+    """
+    Remove copy protection from a PDF file using Ghostscript.
+    Returns the path to the unprotected PDF file.
+    """
+    output_pdf = input_pdf.replace('.pdf', '_unprotected.pdf')
+    
+    # Check if unprotected version already exists
+    if os.path.exists(output_pdf):
+        print(f"Using existing unprotected PDF: {output_pdf}")
+        return output_pdf
+    
+    try:
+        print(f"Attempting to remove copy protection from {input_pdf}")
+        # Use Ghostscript to create a new PDF without copy protection
+        gs_cmd = [
+            'gs', '-q', '-dNOPAUSE', '-dBATCH', '-sDEVICE=pdfwrite',
+            f'-sOutputFile={output_pdf}', input_pdf
+        ]
+        subprocess.run(gs_cmd, check=True)
+        print(f"Successfully created unprotected PDF: {output_pdf}")
+        return output_pdf
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to remove PDF protection: {e}")
+        # Return original file if ghostscript fails
+        return input_pdf
+
 class TextExtractorHolder(PDFTextExtractor.TextExtractorHolder):
     
     # Define the TOP position finder for Sachsen PDFs
@@ -212,7 +239,24 @@ def get_session(session):
     try:
         filename = helper.get_session_pdf_filename(session, PDF_URLS)
         print(f"Using PDF file: {filename}")
-        return dict(get_beschluesse_text(session, filename))
+        try:
+            return dict(get_beschluesse_text(session, filename))
+        except subprocess.CalledProcessError as e:
+            print(f"Error processing PDF: {e}")
+            print("This PDF may be protected against text extraction. Attempting to remove protection...")
+            
+            # Try to remove copy protection and process again
+            unprotected_pdf = remove_pdf_protection(filename)
+            if unprotected_pdf != filename:  # Protection removal was attempted
+                try:
+                    print(f"Trying to process unprotected PDF: {unprotected_pdf}")
+                    return dict(get_beschluesse_text(session, unprotected_pdf))
+                except subprocess.CalledProcessError as e2:
+                    print(f"Still failed to process unprotected PDF: {e2}")
+            
+            # If we get here, both attempts failed
+            print("Could not process PDF even after attempting to remove protection")
+            return {}
     except KeyError:
         print(f"No PDF found for session {session_number}")
         return None

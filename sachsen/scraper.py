@@ -29,25 +29,31 @@ else:
 print("\nStarting to process sessions...")
 for session in sessions:
     num = session['number']
-#    if str(num) in session_tops: TODO
-#        print(f"Session {num} already processed, skipping")
-#        continue
-    if num > 1035:
+    if str(num) in session_tops:
+        print(f"Session {num} already processed, skipping")
         continue
     
     print(f'\nProcessing session: {num}')
-    result = scraper_sachsen.get_session(session)
-    
-    if result is None:
-        print(f"No data found for session {num}")
-        continue
-    
-    print(f"Successfully processed session {num}")
-    session_tops[str(num)] = result
-    
-    # Save after each successful session to avoid losing progress
-    with open(FILENAME, 'w') as f:
-        json.dump(session_tops, f)
-    print(f"Saved data for session {num}")
-
+    try:
+        result = scraper_sachsen.get_session(session)
+        
+        if result is None:
+            print(f"No data found for session {num}")
+            continue
+        
+        if not result:  # Empty dict returned for protected PDFs
+            print(f"Could not extract data from session {num} (PDF may be protected)")
+            continue
+            
+        print(f"Successfully processed session {num}")
+        session_tops[str(num)] = result
+        
+        # Save after each successful session to avoid losing progress
+        with open(FILENAME, 'w') as f:
+            json.dump(session_tops, f)
+        print(f"Saved data for session {num}")
+    except Exception as e:
+        print(f"Error processing session {num}: {e}")
+        print("Continuing with next session...")
+        
 print(f'\nProcessing complete. Total sessions processed: {len(session_tops)}')
