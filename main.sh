@@ -32,3 +32,5 @@ echo "Install requirements"
 (cd sachsen_anhalt && trash session_urls.json &&  python scraper.py)
 (cd schleswig_holstein && trash session_urls.json &&  python scraper.py)
 (cd thueringen && trash session_urls.json &&  python scraper.py)
+
+echo "Now commit, upload to okfde and restart the webservice"
