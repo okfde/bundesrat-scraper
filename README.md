@@ -48,7 +48,7 @@ To scrape the Abstimmungsverhalten of a state, do:
 
 ### Files
 
-- Each state has its own Scraper in the according folder in form of a Jupyter file. The Jupyter file is a wrapper around the actual `scraper_$STATE.py` file. This file extends the `PDFTextExtractor.py` file, which is the code base for the Scrapers. 
+- Each state has its own Scraper in the according folder. The `scraper.py` file is a wrapper around the actual `scraper_$STATE.py` file. This file extends the `PDFTextExtractor.py` file, which is the code base for the Scrapers. 
 - The `Glossary.md` file explains the used terminology used in the code and comments.
 - The `MainBoilerPlate.py` contains the code base for collecting the links to the documents of the states.
 - The `helper.py` file includes some common methods and adaptations of the `pdfcutter` library.
@@ -68,37 +68,9 @@ The scraping of the states behaviours consists of four parts:
 
 
 
-## Tips
-
-### Execute Scraper without Jupyter
-If you want to execute the scraper without Jupyter, you can do
-
-```
-  jupyter nbconvert --to script scraper.ipynb
-```
-, remove the following lines from the beginning of the new python file:
 
 
-```
-  get_ipython().run_line_magic('load_ext', 'autoreload')
-  get_ipython().run_line_magic('autoreload', '2')
-```
-
-, and execute the python file (after enabling anaconda).
-
-### Graphical Debug PDFCutter with Jupyter
-
-Assuming you have a `selection` from your `pdfcutter` instance, you can execute the following code to see the selected text parts in a picture:
-
-```
-#import pdfcutter
-#cutter=pdfcutter.PDFCutter(filename='./_cache/_download_136845')
-debugger = cutter.get_debugger()
-#selection = cutter.all().filter(...)
-debugger.debug(page).draw(17) # Shows picture of the selected text of `selection` on page 17
-```
-
-### Graphical Debug PDFCutter without Jupyter
+### Graphical Debug PDFCutter
 
 Assuming you have a `selection` from your `pdfcutter` instance, you can execute the following code to see the selected text parts in a picture inside a browser (e.g. Firefox):
 
@@ -128,7 +100,7 @@ If you want to see the PDF links the `MainBoilerPlate` file sends to the `TextEx
 
 ### Debug only one session
 
-If you want to debug a scraping error inside one session (say 973), you can add the following to lines to the scraper Jupyter file (cell 8):
+If you want to debug a scraping error inside one session (say 973)
 
 
 ```
@@ -138,4 +110,4 @@ If you want to debug a scraping error inside one session (say 973), you can add 
     continue
 ```
 
-Alternatively, you can remove session 973 from the appropriate `session_tops.json` file and rerun the Jupyter file.
+Alternatively, you can remove session 973 from the appropriate `session_tops.json` file and rerun the Scraper
