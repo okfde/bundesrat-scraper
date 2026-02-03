@@ -33,6 +33,8 @@ class MainExtractorMethod(MainBoilerPlate.MainExtractorMethod):
         for link in links:
             href = link.attrib['href']
             # Skip if not a PDF link for Bundesrat sessions
+            if "1061" in href: #Corrupt PDF-File
+                continue
             if not 'BR_-_Abstimmungsverhalten-TH' in href:
                 continue
                 
