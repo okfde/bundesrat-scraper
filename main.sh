@@ -29,9 +29,8 @@ set -x
 #(cd nordrhein_westfalen && trash session_urls.json &&  python scraper.py)
 #(cd rheinland_pfalz && trash session_urls.json &&  python scraper.py)
 #(cd saarland && trash session_urls.json &&  python scraper.py)
-#(cd sachsen && trash session_urls.json &&  python scraper.py)
-#(cd sachsen_anhalt && trash session_urls.json &&  python scraper.py)
-(cd sachsen_anhalt &&  python scraper.py)
+(cd sachsen && trash session_urls.json &&  python scraper.py)
+(cd sachsen_anhalt && trash session_urls.json &&  python scraper.py)
 (cd schleswig_holstein && trash session_urls.json &&  python scraper.py)
 (cd thueringen && trash session_urls.json &&  python scraper.py)
 set +x
